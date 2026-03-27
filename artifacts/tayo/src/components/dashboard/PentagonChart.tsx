@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { DimensionData } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { DimensionData } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 
 interface PentagonChartProps {

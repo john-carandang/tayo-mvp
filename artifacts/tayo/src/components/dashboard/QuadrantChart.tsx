@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import type { DimensionData } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { DimensionData } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 
 export function QuadrantChart({ dimensions }: { dimensions: DimensionData[] }) {

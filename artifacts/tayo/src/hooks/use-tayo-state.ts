@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { DimensionData, ChatMessage } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { DimensionData, ChatMessage } from "@workspace/api-client-react";
 
 export interface TayoState {
   firstName: string;
