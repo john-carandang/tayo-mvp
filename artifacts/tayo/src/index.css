@@ -1,0 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: 'DM Sans', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-warning: hsl(var(--warning));
+  --color-success: hsl(var(--success));
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}
+
+:root {
+  /* Tayo Dark Premium Theme */
+  --background: 0 0% 4%; /* #0a0a0a */
+  --foreground: 0 0% 98%; /* White text */
+  
+  --card: 0 0% 7%; /* #111111 */
+  --card-foreground: 0 0% 98%;
+  
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 98%;
+  
+  --primary: 85 89% 68%; /* Lime Green #b8f566 */
+  --primary-foreground: 0 0% 4%; /* Dark text on lime */
+  
+  --secondary: 0 0% 15%; /* Dark Gray */
+  --secondary-foreground: 0 0% 98%;
+  
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 60%; /* #999999 */
+  
+  --accent: 85 89% 68%;
+  --accent-foreground: 0 0% 4%;
+  
+  --destructive: 1 74% 59%; /* Red #E24B4A */
+  --warning: 36 86% 55%; /* Amber #EF9F27 */
+  --success: 85 89% 68%; /* Lime Green */
+
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 85 89% 68%;
+}
+
+@layer base {
+  * {
+    @apply border-border selection:bg-primary/30 selection:text-primary;
+  }
+  body {
+    @apply font-sans antialiased bg-background text-foreground min-h-screen overflow-x-hidden;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-card/80 backdrop-blur-md border border-white/5;
+  }
+  
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60;
+  }
+  
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60;
+  }
+
+  /* Custom scrollbar for a premium feel */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}

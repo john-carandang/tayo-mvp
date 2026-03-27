@@ -1,0 +1,10 @@
+packages:
+  "framer-motion": "For page transitions, smooth enter animations, and micro-interactions"
+  "lucide-react": "For UI icons across the application"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge tailwind classes without style conflicts"
+
+notes:
+  - App state is entirely managed in localStorage under 'tayo_session'
+  - The flow is linear: Intake -> Dashboard -> Chat -> Plan -> Habits
+  - All API calls use the pre-generated hooks from @workspace/api-client-react

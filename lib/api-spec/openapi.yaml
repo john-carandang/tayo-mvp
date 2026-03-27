@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Tayo Life Coaching API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: chat
+    description: AI coaching chat
 paths:
   /healthz:
     get:
@@ -24,6 +25,102 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /chat:
+    post:
+      operationId: chat
+      tags: [chat]
+      summary: Send a message to the AI coach
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: AI response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /generate-narrative:
+    post:
+      operationId: generateNarrative
+      tags: [chat]
+      summary: Generate a narrative paragraph from intake data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NarrativeRequest"
+      responses:
+        "200":
+          description: Generated narrative
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NarrativeResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /generate-plan:
+    post:
+      operationId: generatePlan
+      tags: [chat]
+      summary: Generate the personal strategic plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeneratePlanRequest"
+      responses:
+        "200":
+          description: Strategic plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratePlanResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /generate-habits:
+    post:
+      operationId: generateHabits
+      tags: [chat]
+      summary: Generate habits and goals from the strategic plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateHabitsRequest"
+      responses:
+        "200":
+          description: Habits and goals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateHabitsResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +130,116 @@ components:
           type: string
       required:
         - status
-
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+      required:
+        - role
+        - content
+    DimensionData:
+      type: object
+      properties:
+        name:
+          type: string
+        thriving:
+          type: number
+        importance:
+          type: number
+        openText:
+          type: string
+      required:
+        - name
+        - thriving
+        - importance
+        - openText
+    ChatRequest:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+        systemPrompt:
+          type: string
+      required:
+        - messages
+        - systemPrompt
+    ChatResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+    NarrativeRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        dimensions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DimensionData"
+      required:
+        - firstName
+        - dimensions
+    NarrativeResponse:
+      type: object
+      properties:
+        narrative:
+          type: string
+      required:
+        - narrative
+    GeneratePlanRequest:
+      type: object
+      properties:
+        conversationHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChatMessage"
+        dimensions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DimensionData"
+        firstName:
+          type: string
+      required:
+        - conversationHistory
+        - dimensions
+        - firstName
+    GeneratePlanResponse:
+      type: object
+      properties:
+        plan:
+          type: string
+      required:
+        - plan
+    GenerateHabitsRequest:
+      type: object
+      properties:
+        strategicPlan:
+          type: string
+        firstName:
+          type: string
+      required:
+        - strategicPlan
+        - firstName
+    GenerateHabitsResponse:
+      type: object
+      properties:
+        habits:
+          type: string
+      required:
+        - habits
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
