@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { DimensionData, ChatMessage } from "@workspace/api-client-react";
 
 export interface TayoState {
@@ -24,44 +24,59 @@ const INITIAL_STATE: TayoState = {
   chatHistory: [],
 };
 
-export function useTayoState() {
-  const [state, setState] = useState<TayoState>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : INITIAL_STATE;
-    } catch (e) {
-      return INITIAL_STATE;
-    }
-  });
+function readFromStorage(): TayoState {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as TayoState) : INITIAL_STATE;
+  } catch {
+    return INITIAL_STATE;
+  }
+}
 
+function writeToStorage(state: TayoState): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore quota / private-browsing errors
+  }
+}
+
+export function useTayoState() {
+  const [state, setState] = useState<TayoState>(readFromStorage);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // Keep a ref that is always up-to-date with the latest state so that
+  // updateState can merge against it synchronously — without waiting for
+  // React's batched setState callback to be invoked.
+  const stateRef = useRef(state);
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // Write synchronously inside setState so localStorage is always up to date
-  // before any navigation away from the current page.
-  const updateState = (updates: Partial<TayoState>) => {
-    setState((prev) => {
-      const next = { ...prev, ...updates };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch (e) {
-        // ignore storage errors
-      }
-      return next;
-    });
-  };
+  // Keep the ref in sync whenever React actually commits the state.
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
-  const resetState = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_STATE));
-    } catch (e) {
-      // ignore
-    }
+  /**
+   * Merge updates into state.  localStorage is written *synchronously* before
+   * setState is called so that any navigation triggered immediately after this
+   * call will find the fresh value in storage.
+   */
+  const updateState = useCallback((updates: Partial<TayoState>) => {
+    const next = { ...stateRef.current, ...updates };
+    stateRef.current = next;           // update ref immediately
+    writeToStorage(next);              // persist immediately, before re-render
+    console.log("[tayo] updateState →", Object.keys(updates), next);
+    setState(next);
+  }, []);
+
+  const resetState = useCallback(() => {
+    stateRef.current = INITIAL_STATE;
+    writeToStorage(INITIAL_STATE);
     setState(INITIAL_STATE);
-  };
+  }, []);
 
   return { state, updateState, resetState, isHydrated };
 }

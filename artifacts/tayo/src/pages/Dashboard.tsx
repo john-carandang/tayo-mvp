@@ -16,6 +16,12 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>("snapshot");
 
   useEffect(() => {
+    console.log("[tayo] Dashboard mounted — state.narrative →", state.narrative ?? "MISSING");
+    console.log("[tayo] Dashboard — localStorage snapshot →",
+      localStorage.getItem("tayo_session")?.slice(0, 200));
+  }, []);
+
+  useEffect(() => {
     if (isHydrated && !state.firstName) {
       setLocation("/");
     }

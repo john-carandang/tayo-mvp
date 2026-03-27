@@ -27,6 +27,11 @@ export default function Intake() {
   const handleContinue = async () => {
     updateState(localState);
     
+    console.log("[tayo] Intake → calling /api/generate-narrative", {
+      firstName: localState.firstName,
+      dimensionCount: localState.dimensions.length,
+    });
+
     try {
       const response = await generateNarrative({
         data: {
@@ -35,12 +40,15 @@ export default function Intake() {
         }
       });
       
+      console.log("[tayo] /api/generate-narrative raw response →", response);
+      console.log("[tayo] narrative length →", response?.narrative?.length ?? "MISSING");
+
       updateState({ narrative: response.narrative });
+
+      console.log("[tayo] updateState called with narrative — navigating to /dashboard");
       setLocation("/dashboard");
     } catch (error) {
-      console.error("Failed to generate narrative", error);
-      // Even if it fails, proceed to dashboard to not block the user, 
-      // we can handle missing narrative gracefully.
+      console.error("[tayo] /api/generate-narrative FAILED →", error);
       setLocation("/dashboard");
     }
   };
