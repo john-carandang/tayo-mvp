@@ -1,0 +1,78 @@
+TAYO — Full MVP Build Brief
+1. What Tayo Is
+Tayo is a whole-person life coaching and insights platform. It helps users cut through the noise of modern life, understand who they truly are across all dimensions of their lives, and clarify their purpose and values. From there, it generates a personal strategic plan and helps users build concrete goals and daily habits — all deliberately aligned to their purpose and values, so they can live with intention rather than reaction. The core philosophy: you cannot know your purpose without first knowing your whole self.
+
+2. User Flow — Build Exactly These 5 Steps
+Build a 5-step linear flow. Each step occupies its own full screen. Users progress forward only — no skipping. Show a step indicator at the top of every screen.
+Step 1 — Intake
+User self-reports across 5 life dimensions via guided questions. For each dimension, display: (a) a plain-English definition, (b) a 1–10 Likert scale: "How much are you thriving in this area right now?", (c) a second 1–10 Likert scale: "How important is this area to you personally?", and (d) one open-text field: "Tell us more — what's driving these scores, and has anything been shifting for you in this area recently?" Encourage at least 2–3 sentences. No file uploads. No API connections. All data stored in localStorage.
+The 5 dimensions are:
+
+Mental & Emotional — Your relationship with your thoughts, emotions, and inner life, including stress, self-awareness, and psychological resilience
+Career — How engaged, purposeful, and fulfilled you feel in your work, and how well it aligns with your values and strengths
+Physical — How well you are caring for your body, including sleep, movement, nutrition, and physical energy
+Social & Relationships — The quality of your relationships and sense of belonging, including friendships, family, and community
+Financial — Your sense of security, control, and alignment around money, including how you earn, spend, and plan for the future
+
+Step 2 — Holistic Self Dashboard
+After intake, render a full dashboard with three tabs. All data sourced from Step 1 inputs. Scale is 1–10 throughout.
+Use a bold, high-contrast retro aesthetic: black background (#0a0a0a), bright lime green (#b8f566) as the primary accent, white for titles, dark surfaces for cards. Graph titles should be large (22px+), bold, and white. Tab names: "Whole-Being Snapshot", "Life Progress", "Where to Focus".
+Tab 1 — Whole-Being Snapshot: A pentagon web visualization. Purpose sits at the center labeled "[User's first name]'s Purpose." Each of the 5 dimensions is a node — circle size reflects importance score, fill color reflects thriving score (red = 1–4, amber = 5–7, green = 8–10). Spokes connect each dimension back to the purpose center. Pentagon edges connect adjacent dimensions to show interrelation. Include a color legend.
+Tab 2 — Life Progress ("Progress against dimensions"): For each dimension sorted by importance (highest first), show: a row of 10 importance dots, an XP-style progress bar showing thriving score (color-coded), and the numeric scores. Label reads "Thriving X/10."
+Tab 3 — Where to Focus ("Where to Focus"): A 2×2 quadrant chart. X-axis = importance (low to high), Y-axis = thriving (low to high). Four quadrants labeled: Strengths (high importance + high thriving), Focus Areas (high importance + low thriving), Surplus (low importance + high thriving), Dormant (low importance + low thriving). Each dimension appears as a chip in its correct quadrant. Threshold: importance ≥ 7 = high, thriving ≥ 6 = high.
+Persistent narrative (shown below all tabs, never changes between tabs): An AI-generated paragraph of 5–10 sentences, written in second person, that tells the user's story honestly and empoweringly. It must: reference specific thriving and importance scores by name, quote or closely paraphrase the user's own open-text responses, name the dimensions with the largest gaps, acknowledge genuine strengths, and close with a forward-looking framing of what their coaching conversation is for. Generate this by passing all intake data to Claude API with instruction to write in the style of a trusted advisor — analytically precise, warm, and specific.
+CTA button below the narrative reads: "Discuss who you are and your purpose with a coach"
+Step 3 — AI Coaching Conversation
+Use the Claude API (claude-sonnet-4-6). Route all Claude API calls through a lightweight Express backend (/api/chat endpoint) — never call the Claude API directly from the frontend, as this exposes the API key. Store the key in Replit Secrets.
+Before the conversation begins, pass Claude this system prompt, populated with the user's actual data:
+"You are Tayo, a warm, analytically precise life coach. The user's dimension scores are: [insert all thriving and importance scores and gaps]. Their open-text responses are: [insert all]. Your objective in this conversation is threefold: (1) help the user make sense of their whole-person dashboard by exploring what their scores, gaps, and open-text responses reveal about who they are today and how they arrived here; (2) help them surface and articulate what they genuinely value and prioritize — not what they think they should value, but what their responses suggest actually matters most; (3) help them begin to articulate their purpose, their core strengths and differentiators, the key tensions they are navigating, and a sense of direction. You are gathering everything needed to generate a rich, honest personal strategic plan. Ask one probing question at a time. Reference specific scores, gaps, and the user's own words throughout. Do not prescribe — help them discover. When the conversation feels complete, invite them to generate their Strategic Plan."
+UI: a premium messaging interface. User messages right-aligned in lime green. Tayo responses left-aligned in a dark card. Include a "Generate My Strategic Plan" button the user triggers when ready.
+Step 4 — Personal Strategic Plan
+Pass the full conversation history and all intake data to Claude with this instruction:
+"Generate a personal strategic plan with exactly six sections in this order. Write in second person. Be analytically precise, warm, and specific — ground every section in this user's actual responses. Avoid generic coaching language."
+Sections:
+
+(a) My Story: Current Self & Evolution — 4–6 sentence narrative of where this user is today, their arc, what has shifted, and what this moment represents. Written like the opening of a compelling biography — honest, specific, warm. Not a list.
+(b) Core Strengths & Differentiators — 4–6 strengths defining how this person operates at their best. Then 3–4 differentiators — the qualities that make this person distinctly themselves. Format as labeled bullets with one-line descriptions.
+(c) Strategic Challenges — 3–4 key tensions framed not as failures but as design problems — the natural friction created by their ambitions, values, and current circumstances. Each includes one sentence on why it matters.
+(d) Purpose Statement — 2–3 sentences articulating the user's core "why," grounded in their own language from the conversation.
+(e) Core Values — 3–5 values in order of importance. Re-term each to be personal and evocative (e.g., not "health" but "Competition-Ready Vitality"). One-line description per value specific to this user.
+(f) Focus Areas for Growth — 2–3 dimensions most in need of attention, grounded in the gap between thriving and importance scores and the user's stated purpose. One sentence per area explaining why it matters now.
+
+Display as a clean structured document. Style as a premium one-page report: clear section headers, generous spacing, not a chat bubble or form output.
+Step 5 — Habits & Goals
+Pass the full strategic plan to Claude and instruct it to generate 3–5 concrete habits and goals, each explicitly tied to a named core value or focus area from the plan. Goals should be specific and actionable. Habits should be small, realistic, and daily or weekly. Present as a fleshed-out extension of the strategic plan — clean, scannable, well-labeled.
+
+3. Tech Stack
+
+Framework: React with Vite
+Styling: Tailwind CSS
+AI: Anthropic Claude API (claude-sonnet-4-6) via a lightweight Express backend proxy (/api/chat). Never call Claude directly from the frontend
+Visualization: Recharts for Life Progress tab; custom canvas for Whole-Being Snapshot web; CSS grid for quadrant
+Data: localStorage only — no database, no backend persistence, no auth
+API key: Stored in Replit Secrets as ANTHROPIC_API_KEY
+Dependencies: Keep minimal — React, Vite, Tailwind, Express, Anthropic SDK, Recharts
+
+
+4. Design Direction
+Aesthetic: bold, high-contrast, premium. Inspired by Altro.io — dark backgrounds, bright accent colors, clean typography, confident layout. Not a wellness app. Not a productivity tool. A serious, cinematic personal development experience.
+
+Colors: Black background (#0a0a0a), lime green accent (#b8f566), white titles, dark card surfaces (#111, #1a1a1a), red for struggling (#E24B4A), amber for building (#EF9F27)
+Typography: Bold (700) for all headings and graph titles at 22px+. Body text 12–13px, line-height 1.8. Color #999 for body, #fff for emphasis
+Layout: Full-screen steps, one focus per screen, generous padding (18px+). Card surfaces with subtle 1px dark borders
+Dashboard: Web visualization is the visual hero of Step 2 — large, centered, vivid
+Strategic Plan output: Styled as a premium document — not a chat bubble. Clear section headers, generous whitespace, like a well-designed one-page report
+Step indicator: Minimal pill at top of every screen ("Step X of 5")
+Mobile-first: Design for mobile, ensure desktop works
+
+
+5. Definition of Done
+The MVP is complete when a user can:
+
+Complete the full intake across all 5 dimensions — both Likert scores and open-text per dimension
+See a dashboard with all three tabs rendering correctly, color-coded scores, and an AI-generated narrative that references their specific data
+Have a back-and-forth coaching conversation with the AI that references their scores and open-text responses
+Trigger generation of a personal strategic plan containing all six sections in correct order
+See a final habits and goals output with 3–5 concrete, value-aligned items presented as an extension of the strategic plan
+
+The full flow must be completable in a single browser session with no login, no errors, and no dead ends.
