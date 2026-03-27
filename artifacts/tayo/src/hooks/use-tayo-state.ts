@@ -40,15 +40,26 @@ export function useTayoState() {
     setIsHydrated(true);
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
-
+  // Write synchronously inside setState so localStorage is always up to date
+  // before any navigation away from the current page.
   const updateState = (updates: Partial<TayoState>) => {
-    setState((prev) => ({ ...prev, ...updates }));
+    setState((prev) => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {
+        // ignore storage errors
+      }
+      return next;
+    });
   };
 
   const resetState = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_STATE));
+    } catch (e) {
+      // ignore
+    }
     setState(INITIAL_STATE);
   };
 
