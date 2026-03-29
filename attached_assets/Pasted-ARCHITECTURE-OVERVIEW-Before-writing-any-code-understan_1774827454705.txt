@@ -1,0 +1,484 @@
+ARCHITECTURE OVERVIEW
+Before writing any code, understand the full data and request flow:
+STEP 1 (Voice Intake)
+User mic → MediaRecorder (audio/webm) → POST /api/transcribe (FormData) 
+→ OpenAI Whisper → transcript text → POST /api/chat (Claude) 
+→ coaching response text → POST /api/speak (ElevenLabs) 
+→ mp3 audio buffer → Blob URL → <audio> element plays
+
+End of Step 1:
+Full transcript → POST /api/extract-profile (Claude)
+→ structured profile JSON → localStorage → navigate to /dashboard
+
+STEP 2 (Dashboard)
+localStorage profile JSON → React components render pyramid, life map, quadrant
+Profile JSON → POST /api/narrative (Claude) → narrative text 
+→ POST /api/speak (ElevenLabs) → mp3 → Blob URL → <audio> element
+
+STEP 3 (Coach Chat)
+Profile JSON from localStorage → Claude system prompt context
+Same voice pipeline as Step 1
+
+STEP 4 (Strategic Plan)
+Full conversation + profile → POST /api/generate-plan (Claude)
+→ plan text → POST /api/speak (ElevenLabs) → mp3 → <audio> element
+
+DEPENDENCIES
+Add these packages before writing any code. Run in the shell:
+bashnpm install openai multer cors express dotenv
+Existing packages retained: React, Vite, Tailwind, Recharts, Anthropic SDK.
+ElevenLabs: use native fetch to their REST API — no SDK needed.
+
+BACKEND — EXPRESS SERVER
+The Express server must expose exactly these endpoints. Add CORS middleware at the top:
+javascriptconst cors = require('cors');
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+Endpoint 1: POST /api/transcribe
+
+Accepts: multipart/form-data with field audio (audio/webm file)
+Use multer with storage: multer.memoryStorage() to hold file in memory
+Send req.file.buffer to OpenAI Whisper:
+
+javascriptconst { OpenAI } = require('openai');
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const File = require('node:buffer').File; // Node 20+
+const file = new File([req.file.buffer], 'audio.webm', { type: 'audio/webm' });
+const result = await openai.audio.transcriptions.create({
+  model: 'whisper-1',
+  file: file,
+});
+res.json({ transcript: result.text });
+
+Returns: { transcript: string }
+
+Endpoint 2: POST /api/speak
+
+Accepts: { text: string }
+Calls ElevenLabs TTS REST API:
+
+javascriptconst response = await fetch(
+  `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID}`,
+  {
+    method: 'POST',
+    headers: {
+      'xi-api-key': process.env.ELEVENLABS_API_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      text: req.body.text,
+      model_id: 'eleven_monolingual_v1',
+      voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+    })
+  }
+);
+const audioBuffer = await response.arrayBuffer();
+res.set('Content-Type', 'audio/mpeg');
+res.send(Buffer.from(audioBuffer));
+
+Returns: raw mp3 binary (Content-Type: audio/mpeg)
+
+Endpoint 3: POST /api/chat
+
+Accepts: { messages: [{role, content}], systemPrompt: string }
+Calls Claude claude-sonnet-4-6
+Returns: { response: string }
+
+Endpoint 4: POST /api/extract-profile
+
+Accepts: { transcript: string }
+Calls Claude with this instruction: "You are extracting structured data from a life coaching conversation transcript. Return ONLY valid JSON matching this exact schema, nothing else, no markdown, no explanation:"
+Returns the following JSON schema — Claude must populate every field:
+
+json{
+  "firstName": "string",
+  "dimensions": [
+    {
+      "name": "string",
+      "importance": "high|medium|low",
+      "thriving": "high|medium|low",
+      "tier": "foundational|growth|meaning",
+      "themes": ["string"],
+      "notableQuote": "string"
+    }
+  ],
+  "lifeEvents": [
+    {
+      "label": "string",
+      "approximateYear": "number or null",
+      "chapterName": "string",
+      "actualizationLevel": "number between 20 and 95",
+      "type": "peak|low|transition|milestone"
+    }
+  ],
+  "values": ["string"],
+  "purposeThemes": ["string"],
+  "overallNarrative": "string of 5-8 sentences telling the user's story"
+}
+Important rules for Claude when populating this schema:
+
+actualizationLevel for life events: use 20–95 range only. Overall trend must be upward across the timeline despite dips. Low points should be 25–45, transitions 40–60, milestones 60–80, peaks 70–95. Never assign 0 or 100. The principle: challenges are part of the upward arc.
+tier for dimensions: Physical and Financial default to "foundational" unless conversation strongly suggests otherwise. Mental & Emotional and Social & Relationships default to "growth". Career defaults to "meaning". Any "other" dimension — AI assigns tier based on what the user described.
+Dimensions array must contain all 5 standard dimensions plus any "other" dimensions mentioned
+Returns: { profile: <JSON object> } — parse and store entire profile object in localStorage under key tayo_profile
+
+Endpoint 5: POST /api/narrative
+
+Accepts: { profile: object }
+Calls Claude: "Write a warm, honest, empowering narrative of 5–8 sentences in second person ('You are...') based on this profile. Reference specific dimensions, life events, and themes. Apply the principle that over the long arc, this person is moving toward their full potential. Be specific, not generic."
+Returns: { narrative: string }
+
+Endpoint 6: POST /api/generate-plan
+
+Accepts: { profile: object, conversationHistory: array }
+Calls Claude with existing strategic plan system prompt (from v1)
+Returns: { plan: string }
+
+
+PROFILE JSON — FRONTEND USAGE RULES
+Every frontend component that reads from localStorage must:
+
+Parse with JSON.parse(localStorage.getItem('tayo_profile') || 'null')
+Check for null before rendering — show a loading state if null
+Never assume a field exists — use optional chaining (profile?.dimensions)
+
+
+GLOBAL DESIGN SYSTEM
+Apply across every screen:
+css/* Color tokens */
+--cream: #F5F0E8;
+--sage: #7A9E87;
+--sage-dark: #5B8A7A;
+--orange: #C4622D;
+--orange-dark: #A85C3A;
+--orange-deep: #6B3520;
+--gold: #D4A843;
+--terracotta: #A85C3A;
+--brown: #2C1810;
+--brown-light: #6B5B4E;
+--white: #FFFFFF;
+
+Background: --cream on every screen
+Cards: white with 1px solid rgba(44,24,16,0.1), border-radius: 16px, padding 20px
+Headings: bold 700, --brown, 24px+
+Body: 14px, --brown-light, line-height 1.8
+No dark backgrounds anywhere except inside the voice orb component itself
+
+Voice Orb Component (<VoiceOrb state="idle|speaking|listening" size={160|60} />)
+Implement as a CSS component using radial gradients. The orb sits on the cream background and creates the sunset lamp effect through layered radial gradients:
+css/* Base orb — idle state */
+background: radial-gradient(circle at center,
+  #FF8C00 0%,      /* bright amber center */
+  #FF4500 35%,     /* orange-red mid */
+  #8B0000 70%,     /* deep burgundy outer */
+  transparent 100%
+);
+border-radius: 50%;
+animation: pulse-idle 3s ease-in-out infinite;
+
+/* Speaking state — intensified */
+background: radial-gradient(circle at center,
+  #FFB300 0%,
+  #FF6000 30%,
+  #CC0000 65%,
+  transparent 100%
+);
+animation: pulse-speak 1.2s ease-in-out infinite;
+
+/* Listening state — deeper red, faster pulse */
+background: radial-gradient(circle at center,
+  #FF6000 0%,
+  #CC2200 40%,
+  #660000 70%,
+  transparent 100%
+);
+animation: pulse-listen 0.8s ease-in-out infinite;
+Add a subtle outer glow on the cream background using box-shadow:
+cssbox-shadow: 0 0 60px rgba(196, 98, 45, 0.4), 0 0 120px rgba(196, 98, 45, 0.15);
+```
+
+---
+
+**FRONTEND VOICE STATE MACHINE**
+
+The voice interface has exactly these states. Never allow transitions outside this flow:
+```
+IDLE
+  → [page loads, AI greeting ready] → AI_SPEAKING
+
+AI_SPEAKING
+  → [audio ends] → USER_PROMPT (show mic button)
+
+USER_PROMPT
+  → [user taps mic] → USER_RECORDING
+
+USER_RECORDING
+  → [user taps mic again] → PROCESSING
+
+PROCESSING
+  → [transcript + Claude response + ElevenLabs audio ready] → AI_SPEAKING
+  → [error] → ERROR (show retry button, return to USER_PROMPT)
+
+ERROR
+  → [retry] → USER_PROMPT
+Audio recording implementation:
+javascript// Start recording
+const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+const chunks = [];
+mediaRecorder.ondataavailable = e => chunks.push(e.data);
+mediaRecorder.onstop = async () => {
+  const blob = new Blob(chunks, { type: 'audio/webm' });
+  const formData = new FormData();
+  formData.append('audio', blob, 'recording.webm');
+  const res = await fetch('/api/transcribe', { method: 'POST', body: formData });
+  const { transcript } = await res.json();
+  // then send transcript to /api/chat
+};
+mediaRecorder.start();
+Audio playback from ElevenLabs:
+javascriptconst res = await fetch('/api/speak', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ text: aiResponse })
+});
+const blob = await res.blob();
+const url = URL.createObjectURL(blob);
+const audio = new Audio(url);
+audio.onended = () => {
+  URL.revokeObjectURL(url); // clean up memory
+  setVoiceState('USER_PROMPT');
+};
+audio.play();
+setVoiceState('AI_SPEAKING');
+```
+
+---
+
+**STEP 1 — "Reflecting on Your Life Journey"**
+
+Full-screen cream background. Centered layout. Components top to bottom:
+1. Step indicator pill: "Step 1 of 4"
+2. Label: "REFLECTING ON YOUR LIFE JOURNEY" (11px, uppercase, `--brown-light`)
+3. VoiceOrb (size=160) — animates based on voice state
+4. Status text below orb: "Tayo is speaking..." / "Tap to respond" / "Recording..." / "Thinking..."
+5. Mic button (only visible in USER_PROMPT and USER_RECORDING states)
+   - USER_PROMPT: burnt orange circle, microphone icon, label "Tap to speak"
+   - USER_RECORDING: pulsing red circle, stop icon, label "Tap to stop"
+6. Transcript card (scrollable, max-height 200px) — append each turn as it completes:
+   - AI turns: left-aligned, sage green label "Tayo", cream background
+   - User turns: right-aligned, brown label "You", white background
+
+**Conversation phases — Claude system prompt:**
+```
+You are Tayo, a warm and skilled life coach conducting a voice-based intake. 
+Your goal is to gather everything needed to build a whole-person profile. 
+Move through these 6 phases naturally — do not announce phase changes:
+
+Phase 1 — Welcome: Introduce yourself warmly. Ask their name. Explain you'll 
+explore their life together. Make them feel safe.
+
+Phase 2 — Life journey: Ask about their story. What chapters would they name 
+if their life were a book? What has been most challenging, fulfilling, rewarding? 
+How have they grown in recent years? What would they call their highest point so 
+far, and their lowest? Gather approximate timeframes for key events.
+
+Phase 3 — Five dimensions (one at a time): Mental & Emotional, Career, Physical, 
+Social & Relationships, Financial. For each: how are they doing, how important is 
+it, why does it matter, what is driving their current state, what has shifted recently. 
+Use an asset and strength-based lens — surface resilience and growth, not just 
+struggles.
+
+Phase 4 — Other dimensions: Ask if there are other important areas of their life 
+not yet covered. If yes, explore with the same depth.
+
+Phase 5 — Values and purpose: What matters most at the deepest level? What do 
+they want their life to stand for? What does their best self look like?
+
+Phase 6 — Close: Reflect back what you heard in 3–4 warm sentences. Tell them 
+you are now building their dashboard and invite them to continue.
+
+Rules: One question at a time. Never read questions verbatim — have a real 
+conversation. Build trust before going deep. Always frame through the lens that 
+over the long arc of a life, people move toward self-actualization. Challenges are 
+not evidence of going backward — they are often the path forward. Keep responses 
+under 80 words so audio stays conversational.
+End of conversation — profile extraction:
+When Phase 6 closes, show a loading screen ("Building your dashboard...") and:
+
+await fetch('/api/extract-profile', { body: JSON.stringify({ transcript: fullTranscript }) })
+Store result: localStorage.setItem('tayo_profile', JSON.stringify(data.profile))
+Only after successful storage: navigate('/dashboard')
+If extraction fails: show error message with retry button — do not navigate
+
+
+STEP 2 — "Snapshot of Who You Are Today"
+Read profile from localStorage on mount. If null, redirect to Step 1.
+Layout:
+
+Step indicator: "Step 2 of 4"
+Page title: "Snapshot of Who You Are Today" (bold, 28px, --brown)
+Three tab buttons: "Journey to Date" | "Who You Are Now" | "Where to Journey Next"
+
+Default active tab: "Journey to Date"
+Active tab: burnt orange background, cream text
+Inactive: white background, brown text, sage border
+
+
+Tab content panel
+Divider
+Narrative section (below all tabs — never changes when switching tabs)
+"Continue to Coach" button → navigates to Step 3
+
+Narrative section:
+
+VoiceOrb (size=60) left-aligned with a "Play" button beside it (burnt orange, triangle icon)
+Label: "YOUR STORY"
+Transcript card below showing narrative text
+On first load: call /api/narrative with profile, then call /api/speak with result — store audio Blob URL in component state
+Do NOT auto-play — user presses Play button
+Play button toggles to Replay after first play
+If narrative generation fails: show narrative text only, hide orb
+
+
+TAB 1 — "Journey to Date"
+Recharts LineChart. Data sourced from profile.lifeEvents array.
+Data transformation before passing to Recharts:
+javascriptconst chartData = profile.lifeEvents
+  .sort((a, b) => (a.approximateYear || 0) - (b.approximateYear || 0))
+  .map(event => ({
+    x: event.approximateYear || event.chapterName,
+    y: event.actualizationLevel,
+    label: event.label,
+    type: event.type
+  }));
+```
+
+Chart spec:
+- `<LineChart>` with `<Line type="monotone" dataKey="y" stroke="#7A9E87" strokeWidth={3} dot={<CustomDot />} />`
+- Custom dot: burnt orange filled circle (8px), renders the event label as a small rotated text below each point
+- X-axis: `<XAxis dataKey="x" />` — show year or chapter name, angled 45°
+- Y-axis: hidden numbers, only axis label "Toward your full potential" (vertical, left side)
+- No grid lines — clean cream background
+- `<Tooltip>` showing event label and chapter name on hover
+- Chart height: 280px, full width
+
+---
+
+**TAB 2 — "Who You Are Now"**
+
+Puzzle pyramid — rendered as SVG.
+
+Data: `profile.dimensions` array. Group by tier:
+- `foundational` dimensions → bottom tier (widest)
+- `growth` dimensions → middle tier
+- `meaning` dimensions → top tier (narrowest)
+
+SVG spec:
+```
+Total SVG: width=340, height=320
+Pyramid outline: equilateral-ish triangle, apex at top center
+
+Tier heights (from bottom):
+  Bottom tier: y=220 to y=290, full pyramid width at that level
+  Middle tier: y=145 to y=215
+  Top tier: y=80 to y=140
+  Apex (Self-Actualization tip): y=20 to y=75
+
+Each tier is subdivided equally among its dimensions.
+Color fill by thriving level:
+  high → #C4622D (bright orange)
+  medium → #A85C3A (muted orange)
+  low → #6B3520 (dark orange)
+
+Apex always: gold #D4A843, label "Self-Actualization" in 9px cream text
+
+Dimension label: dimension name centered in its segment, 
+  11px, cream #F5F0E8, bold
+
+If true puzzle-piece connectors are not achievable cleanly, 
+use clean trapezoid/triangle segments — do not sacrifice 
+accurate pyramid geometry for decorative connectors.
+
+Add a 2px warm brown #2C1810 border around the full pyramid outline.
+
+TAB 3 — "Where to Journey Next"
+2×2 quadrant grid. Data from profile.dimensions.
+Quadrant assignment logic:
+javascriptconst getQuadrant = (dim) => {
+  const hiImportance = dim.importance === 'high';
+  const hiThriving = dim.thriving === 'high';
+  if (hiImportance && hiThriving) return 'strengths';
+  if (hiImportance && !hiThriving) return 'focus';
+  if (!hiImportance && hiThriving) return 'surplus';
+  return 'dormant';
+};
+```
+
+Quadrant labels and colors:
+- Strengths (top-right): sage green tint `rgba(122,158,135,0.15)`, label color `--sage-dark`
+- Focus Areas (bottom-right): terracotta tint `rgba(168,92,58,0.12)`, label color `--terracotta`
+- Surplus (top-left): cream `#F5F0E8`, label color `--brown-light`
+- Dormant (bottom-left): light gray `#E8E4DC`, label color `#999`
+
+Each dimension: a chip with dimension name, styled with its quadrant color.
+
+Axis labels: "← Matters less / Matters most →" (bottom), "↑ Thriving / Needs work ↓" (side).
+
+---
+
+**STEP 3 — "Discuss Who You Are Today"**
+
+Same voice pipeline as Step 1 (same MediaRecorder, same `/api/transcribe`, same `/api/speak`, same state machine). Apply same UI pattern (orb, transcript card, mic button).
+
+Title: "Discuss Who You Are Today"
+
+Claude system prompt: preload with full profile JSON:
+```
+You are Tayo, a warm and precise life coach. You have full context on this person 
+from their intake conversation. Here is their profile: [INSERT PROFILE JSON].
+Your goal in this conversation: help them make sense of their dashboard, go deeper 
+on their values and purpose, and prepare to articulate their life strategic plan.
+Ask one question at a time. Reference their specific dimensions, life events, and 
+themes throughout. Keep responses under 80 words for natural voice flow.
+CTA button at bottom: "Generate My Life Strategic Plan" (burnt orange, bold) — triggers Step 4.
+
+STEP 4 — "Life Strategic Plan"
+Title: "[firstName]'s [current year] Life Strategic Plan" (e.g., "John's 2026 Life Strategic Plan")
+Remove: "Personal Strategic Plan: [name]" header line.
+Remove letter prefixes from all section titles.
+Replace all *asterisk emphasis* with <strong> tags.
+Section order unchanged: My Story, Core Strengths & Differentiators, Strategic Challenges, Purpose Statement, Core Values, Focus Areas for Growth.
+AI voice narration:
+
+VoiceOrb (size=60) at top of plan with "Play" button
+On plan generation complete: call /api/speak with full plan text (all sections concatenated, ~400–600 words)
+User presses Play — audio plays, Replay available after
+If plan text is very long: truncate to first 500 words for the voice narration only — full text always shown in document
+
+Apply retro design system to plan document:
+
+Section headers: sage green --sage, 16px, bold, uppercase
+Section dividers: 1px --gold line between sections
+Bold terms using <strong>: --brown, slightly darker than body
+Body text: --brown-light, 14px, line-height 1.9
+
+
+STEP 5
+Excluded from this build entirely. Remove from navigation if present.
+
+DEFINITION OF DONE
+The build is complete when all of the following pass:
+
+Step 1: User can speak to the orb, hear Kevin's voice respond, complete all 6 conversation phases, and land on a populated dashboard
+Step 1→2 transition: Profile is correctly extracted as valid JSON and stored in localStorage before navigation
+Dashboard Tab 1: Life map renders with correctly ordered events, upward-trending line, labeled nodes
+Dashboard Tab 2: Pyramid renders all dimensions in correct tiers with correct orange shading by thriving level and gold Self-Actualization tip
+Dashboard Tab 3: Quadrant correctly places all dimensions based on importance and thriving
+Dashboard narrative: Play button generates and plays Kevin's voice narration with transcript shown
+Step 3: Voice coaching conversation has full profile context, voice pipeline works identically to Step 1
+Step 4: Strategic plan generates with correct title, formatting (bold not asterisks, no letter prefixes), and voice narration plays via Play button
+Design: Cream background, sage/orange/gold/brown palette applied consistently on every screen
+Voice orb: Animates correctly through idle/speaking/listening states on Steps 1, 2, 3, 4
+Full flow completable in one session, no login, no console errors, no dead ends
+
