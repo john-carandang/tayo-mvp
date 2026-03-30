@@ -141,14 +141,17 @@ export default function Intake() {
       return;
     }
 
-    // Fire all TTS requests in parallel for minimum latency
-    const audioPromises = sentences.map(s => speakText(s));
+    // Fire all TTS requests in parallel for minimum latency.
+    // Attach .catch immediately so a failed promise never becomes an unhandled rejection
+    // before the for-loop awaits it.
+    const audioPromises = sentences.map(s => speakText(s).catch(() => null));
 
     // Play each sentence sequentially as they become ready
     for (const promise of audioPromises) {
       if (playbackCancelRef.current) break;
       try {
         const audio = await promise;
+        if (!audio) continue; // TTS failed for this sentence — skip silently
         if (playbackCancelRef.current) break;
         audioRef.current = audio;
         await new Promise<void>(resolve => {

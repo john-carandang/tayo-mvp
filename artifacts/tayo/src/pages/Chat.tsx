@@ -122,13 +122,15 @@ ${NO_MARKDOWN_RULE}`;
 
     if (sentences.length === 0) { setVoiceState("USER_PROMPT"); return; }
 
-    // Fire all TTS in parallel, play sequentially
-    const audioPromises = sentences.map(s => speakText(s));
+    // Fire all TTS in parallel, play sequentially.
+    // Attach .catch immediately so failed promises never become unhandled rejections.
+    const audioPromises = sentences.map(s => speakText(s).catch(() => null));
 
     for (const promise of audioPromises) {
       if (playbackCancelRef.current) break;
       try {
         const audio = await promise;
+        if (!audio) continue; // TTS failed — skip silently
         if (playbackCancelRef.current) break;
         audioRef.current = audio;
         await new Promise<void>(resolve => {
