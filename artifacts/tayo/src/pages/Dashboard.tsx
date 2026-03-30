@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Dot, LabelList,
-  ComposedChart, Bar, ReferenceLine, Cell,
+  ComposedChart, Bar, Cell,
 } from "recharts";
 import { StepLayout } from "@/components/layout/StepLayout";
 import { VoiceOrb, type OrbState } from "@/components/ui/VoiceOrb";
@@ -238,23 +238,48 @@ function ThriveGapChart({ dimensions }: { dimensions: TayoDimension[] }) {
               );
             }}
           />
-          {/* Thriving bars */}
-          <Bar dataKey="thriving" radius={[4, 4, 0, 0]} maxBarSize={40}>
+          {/* Thriving bars — custom shape draws bar + scoped importance dashed line */}
+          <Bar
+            dataKey="thriving"
+            maxBarSize={40}
+            shape={(props: Record<string, unknown>) => {
+              const x = props.x as number;
+              const y = props.y as number;
+              const width = props.width as number;
+              const height = props.height as number;
+              const fill = props.fill as string;
+              const bg = props.background as { y: number; height: number };
+              const payload = props.payload as { importance: number };
+
+              if (!width || width <= 0) return <g />;
+
+              // Convert importance value → SVG y-coordinate
+              // bg.y = top of chart area (domain max), bg.y+bg.height = bottom (domain 0)
+              const importanceY = bg.y + bg.height * (1 - payload.importance / 10);
+
+              return (
+                <g>
+                  {/* Bar with rounded top corners */}
+                  <rect x={x} y={y} width={width} height={height} fill={fill} rx={4} ry={4} />
+                  {/* Dashed importance line — exactly bar width, positioned at importance level */}
+                  <line
+                    x1={x}
+                    y1={importanceY}
+                    x2={x + width}
+                    y2={importanceY}
+                    stroke="#C4622D"
+                    strokeDasharray="5 3"
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                  />
+                </g>
+              );
+            }}
+          >
             {chartData.map((d, i) => (
               <Cell key={i} fill={d.color} />
             ))}
           </Bar>
-          {/* Dashed importance line across each bar */}
-          {chartData.map((d, i) => (
-            <ReferenceLine
-              key={i}
-              x={d.name}
-              y={d.importance}
-              stroke="#C4622D"
-              strokeDasharray="4 3"
-              strokeWidth={1.5}
-            />
-          ))}
         </ComposedChart>
       </ResponsiveContainer>
 
@@ -427,7 +452,7 @@ export default function Dashboard() {
                     />
                     <YAxis
                       domain={[0, 100]}
-                      tick={{ fontSize: 10, fill: "#746A5A" }}
+                      tick={false}
                       axisLine={false}
                       tickLine={false}
                       width={36}
