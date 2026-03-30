@@ -10,7 +10,7 @@ import { useTayoProfile, type TayoDimension } from "@/hooks/use-tayo-state";
 import { cn } from "@/lib/utils";
 import { MessageSquare, Volume2, VolumeX } from "lucide-react";
 
-type Tab = "journey" | "pyramid" | "focus";
+type Tab = "journey" | "who" | "next";
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -25,11 +25,11 @@ async function speakText(text: string): Promise<HTMLAudioElement> {
   return new Audio(URL.createObjectURL(blob));
 }
 
-// Color based on thriving score
+// Pyramid segment fill: warm brown palette per spec
 function thrivingColor(thriving: number): string {
-  if (thriving >= 7) return "#638863";    // sage green
-  if (thriving >= 4) return "#D4A024";    // gold
-  return "#E07020";                        // orange/warm
+  if (thriving >= 7) return "#C4622D";    // high — burnt sienna
+  if (thriving >= 4) return "#A85C3A";    // medium — warm umber
+  return "#6B3520";                        // low — deep mahogany
 }
 
 // ─── Per-Dimension Segmented SVG Pyramid ─────────────────────────────────────
@@ -121,29 +121,29 @@ function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
           </g>
         ))}
 
-        {/* Gold apex tip overlay */}
+        {/* Gold Self-Actualization apex tip per spec */}
         <polygon
           points={`${cx},${apexY} ${cx - 14},${apexY + 22} ${cx + 14},${apexY + 22}`}
-          fill="#F0C040"
-          stroke="#5C4A30"
+          fill="#D4A843"
+          stroke="#2C1810"
           strokeWidth="1.5"
         />
 
-        {/* Outer pyramid outline */}
+        {/* Outer pyramid outline — warm brown #2C1810 per spec */}
         <polygon
           points={`${cx},${apexY} ${cx - halfW(baseY)},${baseY} ${cx + halfW(baseY)},${baseY}`}
           fill="none"
-          stroke="#5C4A30"
-          strokeWidth="2"
+          stroke="#2C1810"
+          strokeWidth="2.5"
         />
       </svg>
 
       {/* Legend */}
       <div className="flex flex-wrap justify-center gap-3 mt-3">
         {[
-          { label: "Thriving (7+)", color: "#638863" },
-          { label: "Developing (4–6)", color: "#D4A024" },
-          { label: "Needs focus (<4)", color: "#E07020" },
+          { label: "Thriving (7+)", color: "#C4622D" },
+          { label: "Growing (4–6)", color: "#A85C3A" },
+          { label: "Focus needed (<4)", color: "#6B3520" },
         ].map(({ label, color }) => (
           <div key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
@@ -291,9 +291,9 @@ export default function Dashboard() {
   if (!isHydrated || !profile) return null;
 
   const TABS: Array<{ id: Tab; label: string }> = [
-    { id: "journey", label: "Life Journey" },
-    { id: "pyramid", label: "Wellness Pyramid" },
-    { id: "focus", label: "Focus Quadrant" },
+    { id: "journey", label: "Journey to Date" },
+    { id: "who", label: "Who You Are Now" },
+    { id: "next", label: "Where to Journey Next" },
   ];
 
   const sortedEvents = [...(profile.lifeEvents ?? [])].sort((a, b) => a.approximateYear - b.approximateYear);
@@ -328,11 +328,11 @@ export default function Dashboard() {
           transition={{ duration: 0.3 }}
           className="w-full"
         >
-          {/* Life Journey — clean line chart, no grid */}
+          {/* Tab 1: Journey to Date — sage line, burnt orange dots */}
           {activeTab === "journey" && (
             <div className="card-warm p-6">
               <h3 className="font-display text-base text-foreground mb-4 text-center">
-                Your Actualization Journey
+                Journey to Date
               </h3>
               {sortedEvents.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8 text-sm">No life events to display.</p>
@@ -350,8 +350,8 @@ export default function Dashboard() {
                       <Line
                         type="monotone"
                         dataKey="actualizationLevel"
-                        stroke="#E07020"
-                        strokeWidth={3}
+                        stroke="#638863"
+                        strokeWidth={2.5}
                         dot={(props) => {
                           const { cx, cy, payload } = props;
                           return (
@@ -360,18 +360,21 @@ export default function Dashboard() {
                               cx={cx}
                               cy={cy}
                               r={5}
-                              fill={thrivingColor(Math.round(payload.actualizationLevel / 10))}
+                              fill="#C4622D"
                               stroke="#F5F0E8"
                               strokeWidth={2}
                             />
                           );
                         }}
-                        activeDot={{ r: 7, fill: "#E07020" }}
+                        activeDot={{ r: 7, fill: "#C4622D" }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
+                  <p className="text-center text-xs text-muted-foreground mt-1 mb-3 italic">
+                    Toward your full potential
+                  </p>
 
-                  <div className="flex flex-wrap justify-center gap-2 mt-2">
+                  <div className="flex flex-wrap justify-center gap-2">
                     {sortedEvents.map((evt, i) => (
                       <div key={i} className="text-center px-2 py-1.5 rounded-lg bg-background/60 text-xs">
                         <p className="font-semibold text-foreground">{evt.chapterName}</p>
@@ -384,21 +387,21 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Wellness Pyramid */}
-          {activeTab === "pyramid" && (
+          {/* Tab 2: Who You Are Now — SVG pyramid */}
+          {activeTab === "who" && (
             <div className="card-warm p-6">
               <h3 className="font-display text-base text-foreground mb-6 text-center">
-                Your Wellness Pyramid
+                Who You Are Now
               </h3>
               <WellnessPyramid dimensions={profile.dimensions} />
             </div>
           )}
 
-          {/* Focus Quadrant */}
-          {activeTab === "focus" && (
+          {/* Tab 3: Where to Journey Next — 2x2 quadrant */}
+          {activeTab === "next" && (
             <div className="card-warm p-6">
               <h3 className="font-display text-base text-foreground mb-6 text-center">
-                Where to Focus
+                Where to Journey Next
               </h3>
               <FocusQuadrant dimensions={profile.dimensions} />
             </div>
@@ -460,7 +463,7 @@ export default function Dashboard() {
             className="flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground rounded-full font-semibold hover:bg-primary/90 hover:scale-105 transition-all shadow-lg"
           >
             <MessageSquare className="w-4 h-4" />
-            Start Coaching Session
+            Continue to Coach
           </button>
         </div>
       </div>

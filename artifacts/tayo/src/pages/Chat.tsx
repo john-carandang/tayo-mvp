@@ -54,8 +54,6 @@ export default function Chat() {
   const [currentAiText, setCurrentAiText] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
-  const [planReady, setPlanReady] = useState(false);
-  const [plan, setPlan] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -194,14 +192,13 @@ Your role: Help ${profile.firstName} go deeper on their insights, clarify what t
       if (!res.ok) throw new Error("Plan generation failed");
       const data = await res.json();
       localStorage.setItem("tayo_plan", data.plan);
-      setPlan(data.plan);
-      setPlanReady(true);
+      setLocation("/plan");
     } catch (err) {
       console.error(err);
     } finally {
       setIsGeneratingPlan(false);
     }
-  }, [profile, history]);
+  }, [profile, history, setLocation]);
 
   const orbStateDisplay: OrbState =
     voiceState === "AI_SPEAKING" ? "speaking" :
@@ -216,31 +213,6 @@ Your role: Help ${profile.firstName} go deeper on their insights, clarify what t
     voiceState === "ERROR" ? "Tap to retry" : "";
 
   if (!isHydrated || !profile) return null;
-
-  if (planReady) {
-    return (
-      <StepLayout step={3} title="Coaching Complete">
-        <div className="flex flex-col items-center gap-6 py-12 text-center">
-          <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center">
-            <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-display">Your plan is ready</h2>
-          <p className="text-muted-foreground max-w-sm">
-            I've synthesized everything from your intake and our conversation into a personal strategic plan.
-          </p>
-          <button
-            onClick={() => setLocation("/plan")}
-            className="flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground rounded-full font-semibold hover:bg-primary/90 hover:scale-105 transition-all shadow-lg"
-          >
-            View My Strategic Plan
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </StepLayout>
-    );
-  }
 
   return (
     <StepLayout step={3} title="Coaching Session" subtitle={`Hello ${profile.firstName}, let's go deeper.`}>
@@ -297,8 +269,8 @@ Your role: Help ${profile.firstName} go deeper on their insights, clarify what t
           <p className="text-sm text-destructive text-center">{errorMsg}</p>
         )}
 
-        {/* Generate Plan button — available after a few exchanges */}
-        {history.filter(m => m.role === "user").length >= 2 && (
+        {/* Generate Plan button — available after first user exchange */}
+        {history.filter(m => m.role === "user").length >= 1 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -316,7 +288,7 @@ Your role: Help ${profile.firstName} go deeper on their insights, clarify what t
                 </>
               ) : (
                 <>
-                  Build My Strategic Plan
+                  Generate My Life Strategic Plan
                   <ChevronRight className="w-4 h-4" />
                 </>
               )}

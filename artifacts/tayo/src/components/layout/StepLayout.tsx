@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { StepIndicator } from "@/components/ui/StepIndicator";
 
 interface StepLayoutProps {
   children: ReactNode;
@@ -9,13 +9,6 @@ interface StepLayoutProps {
   title?: string;
   subtitle?: string;
 }
-
-const STEPS = [
-  { label: "Voice Intake", path: "/" },
-  { label: "Your Dashboard", path: "/dashboard" },
-  { label: "Coaching Session", path: "/chat" },
-  { label: "Strategic Plan", path: "/plan" },
-];
 
 export function StepLayout({ children, step, title, subtitle }: StepLayoutProps) {
   const [, setLocation] = useLocation();
@@ -39,31 +32,7 @@ export function StepLayout({ children, step, title, subtitle }: StepLayoutProps)
               Tayo
             </button>
 
-            <div className="hidden sm:flex items-center gap-1">
-              {STEPS.map((s, i) => (
-                <div key={i} className="flex items-center gap-1">
-                  <button
-                    onClick={() => i + 1 < step && setLocation(s.path)}
-                    className={cn(
-                      "text-xs font-medium px-3 py-1.5 rounded-full transition-all",
-                      i + 1 === step
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : i + 1 < step
-                          ? "text-muted-foreground hover:text-foreground cursor-pointer"
-                          : "text-muted-foreground/50 cursor-default"
-                    )}
-                  >
-                    {s.label}
-                  </button>
-                  {i < STEPS.length - 1 && (
-                    <div className={cn(
-                      "w-4 h-px",
-                      i + 1 < step ? "bg-foreground/20" : "bg-foreground/10"
-                    )} />
-                  )}
-                </div>
-              ))}
-            </div>
+            <StepIndicator currentStep={step} />
 
             <div className="sm:hidden text-xs font-medium text-muted-foreground">
               {step} / 4

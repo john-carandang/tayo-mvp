@@ -43,14 +43,19 @@ function stripPrefixes(text: string): string {
     .trim();
 }
 
+// Plan section: sage uppercase header + gold divider + brown body text per spec
 function PlanSection({ heading, body }: { heading: string; body: string }) {
   const paragraphs = body.split(/\n\n+/).filter(Boolean);
 
   return (
-    <div className="mb-8">
-      <h3 className="text-base font-semibold font-display text-foreground mb-3 pb-1.5 border-b border-border/60">
+    <div className="mb-7">
+      {/* Sage green, uppercase, bold 16px header */}
+      <h3 style={{ color: "#638863", fontSize: "16px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
         {heading}
       </h3>
+      {/* Gold 1px divider */}
+      <div style={{ borderBottom: "1px solid #D4A843", marginBottom: "12px" }} />
+      {/* Brown body text 14px line-height 1.9 */}
       <div className="space-y-3">
         {paragraphs.map((para, j) => {
           const lines = para.split("\n").filter(l => l.trim());
@@ -58,10 +63,10 @@ function PlanSection({ heading, body }: { heading: string; body: string }) {
 
           if (isBulletBlock) {
             return (
-              <ul key={j} className="space-y-2">
+              <ul key={j} className="space-y-1.5">
                 {lines.map((line, k) => (
-                  <li key={k} className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
-                    <span className="text-primary mt-0.5 flex-shrink-0 font-bold">·</span>
+                  <li key={k} className="flex gap-2" style={{ fontSize: "14px", lineHeight: "1.9", color: "#5C4030" }}>
+                    <span style={{ color: "#C4622D", marginTop: "2px", flexShrink: 0, fontWeight: "bold" }}>·</span>
                     <InlineText text={line.replace(/^[-•*]\s*/, "")} />
                   </li>
                 ))}
@@ -70,7 +75,7 @@ function PlanSection({ heading, body }: { heading: string; body: string }) {
           }
 
           return (
-            <p key={j} className="text-sm text-muted-foreground leading-relaxed">
+            <p key={j} style={{ fontSize: "14px", lineHeight: "1.9", color: "#5C4030" }}>
               <InlineText text={para} />
             </p>
           );
@@ -103,7 +108,7 @@ function renderPlan(raw: string): ReactNode {
     return sections.map((s, i) => <PlanSection key={i} heading={s.heading} body={s.body} />);
   }
 
-  // Fallback: render as paragraphs
+  // Fallback: render as paragraphs with spec-compliant styles
   const paragraphs = cleaned.split(/\n\n+/).filter(Boolean);
   return paragraphs.map((para, i) => {
     const lines = para.split("\n").filter(l => l.trim());
@@ -111,19 +116,22 @@ function renderPlan(raw: string): ReactNode {
 
     if (isShortLine) {
       return (
-        <h3 key={i} className="text-base font-semibold font-display text-foreground mt-6 mb-2 pb-1 border-b border-border/60">
-          {para.trim()}
-        </h3>
+        <div key={i} className="mt-6 mb-2">
+          <h3 style={{ color: "#638863", fontSize: "16px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
+            {para.trim()}
+          </h3>
+          <div style={{ borderBottom: "1px solid #D4A843" }} />
+        </div>
       );
     }
 
     const isBulletBlock = lines.every(l => /^[-•*]/.test(l.trim()));
     if (isBulletBlock) {
       return (
-        <ul key={i} className="space-y-2 mb-3">
+        <ul key={i} className="space-y-1.5 mb-3">
           {lines.map((line, k) => (
-            <li key={k} className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
-              <span className="text-primary mt-0.5 flex-shrink-0 font-bold">·</span>
+            <li key={k} className="flex gap-2" style={{ fontSize: "14px", lineHeight: "1.9", color: "#5C4030" }}>
+              <span style={{ color: "#C4622D", marginTop: "2px", flexShrink: 0, fontWeight: "bold" }}>·</span>
               <InlineText text={line.replace(/^[-•*]\s*/, "")} />
             </li>
           ))}
@@ -132,7 +140,7 @@ function renderPlan(raw: string): ReactNode {
     }
 
     return (
-      <p key={i} className="text-sm text-muted-foreground leading-relaxed mb-3">
+      <p key={i} className="mb-3" style={{ fontSize: "14px", lineHeight: "1.9", color: "#5C4030" }}>
         <InlineText text={para} />
       </p>
     );
@@ -163,8 +171,8 @@ export default function Plan() {
     if (!plan || narrationStarted) return;
     setNarrationStarted(true);
 
-    const preview = plan.slice(0, 500);
-    const narrationText = `Here is ${profile?.firstName ?? "your"} personal strategic plan. ${preview}`;
+    const first500Words = plan.split(/\s+/).slice(0, 500).join(" ");
+    const narrationText = `Here is ${profile?.firstName ?? "your"} personal strategic plan. ${first500Words}`;
 
     speakText(narrationText)
       .then((audio) => {
@@ -188,8 +196,9 @@ export default function Plan() {
     setIsNarrating(true);
     try {
       // Use pre-fetched audio if ready, otherwise fetch now
+      const first500Words = plan.split(/\s+/).slice(0, 500).join(" ");
       const audio = prefetchedAudioRef.current
-        ?? await speakText(`Here is ${profile?.firstName ?? "your"} personal strategic plan. ${plan.slice(0, 500)}`);
+        ?? await speakText(`Here is ${profile?.firstName ?? "your"} personal strategic plan. ${first500Words}`);
       prefetchedAudioRef.current = null;
       audioRef.current = audio;
       audio.play();

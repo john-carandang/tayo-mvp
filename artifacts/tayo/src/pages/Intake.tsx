@@ -167,9 +167,8 @@ Be natural and welcoming.`;
       const conversationText = messagesRef.current
         .map(m => `${m.role === "user" ? "User" : "Tayo"}: ${m.content}`)
         .join("\n\n");
-      const firstWord = (transcriptRef.current[0] ?? "").split(/[\s,!.]+/)[0].replace(/[^a-zA-Z]/g, "");
-      const firstName = firstWord || "Friend";
-      const profile = await extractProfile(conversationText, firstName);
+      // Let Claude extract the firstName from the conversation — don't guess from tokens
+      const profile = await extractProfile(conversationText, "");
       setProfile(profile);
       setLocation("/dashboard");
     } catch {
