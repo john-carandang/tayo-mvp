@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. The main application is **Tayo** — a whole-person life coaching and insights platform built with React + Vite + Express + Claude AI.
+pnpm workspace monorepo using TypeScript. The main application is **Tayo** — a voice-first life coaching platform built with React + Vite + Express + Claude AI + OpenAI Whisper + ElevenLabs TTS.
 
 ## Stack
 
@@ -10,13 +10,13 @@ pnpm workspace monorepo using TypeScript. The main application is **Tayo** — a
 - **Node.js version**: 24
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
-- **Frontend**: React + Vite (Tailwind CSS, framer-motion, lucide-react)
+- **Frontend**: React + Vite (Tailwind CSS v4, framer-motion, lucide-react, recharts)
 - **API framework**: Express 5
-- **AI**: Anthropic Claude (claude-sonnet-4-5) via api-server backend proxy
-- **Database**: None (localStorage only)
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **AI**: Anthropic Claude (claude-sonnet-4-5) for coaching + profile extraction
+- **Voice Input**: OpenAI Whisper (whisper-1) via multer for audio transcription
+- **Voice Output**: ElevenLabs TTS REST API (eleven_monolingual_v1) for spoken responses
+- **Database**: None (localStorage only — key: `tayo_profile`)
+- **Build**: esbuild (CJS bundle for api-server)
 
 ## Structure
 
@@ -24,51 +24,85 @@ pnpm workspace monorepo using TypeScript. The main application is **Tayo** — a
 artifacts-monorepo/
 ├── artifacts/
 │   ├── tayo/                   # Main Tayo frontend (React + Vite)
-│   └── api-server/             # Express API server (Claude proxy)
+│   │   └── src/
+│   │       ├── pages/          # Intake, Dashboard, Chat, Plan
+│   │       ├── components/
+│   │       │   ├── layout/     # StepLayout (4-step nav)
+│   │       │   └── ui/         # VoiceOrb, toaster, etc.
+│   │       └── hooks/          # use-tayo-state.ts
+│   └── api-server/             # Express API server
+│       └── src/routes/chat.ts  # All 6 voice API endpoints
 ├── lib/
-│   ├── api-spec/               # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/       # Generated React Query hooks
-│   ├── api-zod/                # Generated Zod schemas from OpenAPI
-│   └── db/                     # Drizzle ORM schema + DB connection
-├── scripts/                    # Utility scripts
+│   ├── api-spec/               # OpenAPI spec (legacy, no longer used for new endpoints)
+│   ├── api-client-react/       # Generated React Query hooks (legacy, unused)
+│   ├── api-zod/                # Generated Zod schemas (legacy, unused)
+│   └── db/                     # Drizzle ORM (unused — no DB)
 ├── pnpm-workspace.yaml
 ├── tsconfig.base.json
-├── tsconfig.json
 └── package.json
 ```
 
 ## Tayo — Application Overview
 
-Tayo is a 5-step linear life coaching flow:
+Tayo is a **voice-first** 4-step linear life coaching flow:
 
-1. **Step 1 — Intake**: User enters name + scores 5 life dimensions (Mental & Emotional, Career, Physical, Social & Relationships, Financial) on thriving/importance Likert scales plus open-text
-2. **Step 2 — Dashboard**: Three-tab visualization (Pentagon Web, Life Progress bars, Focus Quadrant) + AI narrative
-3. **Step 3 — Coaching Chat**: AI conversation via Claude (system-prompted with user's data)
-4. **Step 4 — Strategic Plan**: AI-generated 6-section personal strategic plan
-5. **Step 5 — Habits & Goals**: 3-5 concrete, value-aligned habits and goals
+1. **Step 1 — Voice Intake** (`/`): User taps the VoiceOrb, speaks through 6 guided phases (Introduction → Story → Life Areas → Values → Purpose → Final Thoughts). Claude conducts the conversation; Whisper transcribes audio; ElevenLabs speaks Claude's responses.
+2. **Step 2 — Dashboard** (`/dashboard`): Three-tab visualization — Life Journey (recharts line chart of actualization over time), Wellness Pyramid (SVG 3-tier pyramid: foundational/growth/meaning from Claude), Focus Quadrant (2×2 importance vs thriving grid). Voiced narrative via small orb.
+3. **Step 3 — Coaching Session** (`/chat`): Free-form voice conversation with full profile context. After 2+ user exchanges, "Build My Strategic Plan" button appears.
+4. **Step 4 — Strategic Plan** (`/plan`): AI-generated personal strategic plan with formatted sections, voice narration, and "Start over" button.
 
-## API Routes
+## Design System
 
-All Claude calls go through `/api` (never directly from frontend):
+- **Background**: Cream `#F5F0E8` (HSL 37, 33%, 95%)
+- **Font**: Playfair Display (display/headings), DM Sans (body)
+- **Primary color**: Warm orange `#E07020`
+- **Accent**: Gold `#D4A024`
+- **Success/sage**: `#638863`
+- **VoiceOrb states**: idle (gold/brown), speaking (orange), listening (sage green), processing (pulsing with spinner)
 
-- `POST /api/chat` — general coaching chat
-- `POST /api/generate-narrative` — dashboard narrative paragraph
-- `POST /api/generate-plan` — personal strategic plan
-- `POST /api/generate-habits` — habits and goals
+## API Routes (api-server, port 8080)
 
-## Design
+- `POST /api/transcribe` — audio file (multipart) → `{ text }` via Whisper
+- `POST /api/speak` — `{ text }` → raw mp3 audio via ElevenLabs
+- `POST /api/chat` — `{ messages, systemPrompt }` → `{ response }` via Claude
+- `POST /api/extract-profile` — `{ conversationText, firstName }` → `{ profile: TayoProfile }` via Claude
+- `POST /api/narrative` — `{ profile }` → `{ narrative }` via Claude
+- `POST /api/generate-plan` — `{ profile, conversationHistory, firstName }` → `{ plan }` via Claude
+- `GET /api/health` — health check
 
-- Black background (`#0a0a0a`), lime green accent (`#b8f566`)
-- Bold cinematic premium aesthetic
-- Mobile-first responsive
-- No auth, no database — localStorage only
+## Profile Schema (`tayo_profile` in localStorage)
 
-## Environment Variables
+```typescript
+interface TayoProfile {
+  firstName: string;
+  dimensions: Array<{
+    name: string;
+    importance: number;    // 1-10
+    thriving: number;      // 1-10
+    tier: "foundational" | "growth" | "meaning";
+    themes: string[];
+    notableQuote: string;
+  }>;
+  lifeEvents: Array<{
+    label: string;
+    approximateYear: number;
+    chapterName: string;
+    actualizationLevel: number;  // 20-95
+    type: "peak" | "valley" | "turning_point" | "stable";
+  }>;
+  values: string[];
+  purposeThemes: string[];
+  overallNarrative: string;
+}
+```
 
-- `ANTHROPIC_API_KEY` — required secret for Claude API
+## Environment Variables Required
 
-## Key Commands
+- `ANTHROPIC_API_KEY` — for Claude AI
+- `OPENAI_API_KEY` — for Whisper transcription
+- `ELEVENLABS_API_KEY` — for TTS
+- `ELEVENLABS_VOICE_ID` — (optional, defaults to "EXAVITQu4vr4xnSDxMaL")
 
-- `pnpm --filter @workspace/tayo run dev` — run frontend
-- `pnpm --filter @workspace/api-server run dev` — run API server
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API types
+## Vite Proxy
+
+The Tayo frontend proxies `/api/*` → `http://localhost:8080` with a 60s timeout.

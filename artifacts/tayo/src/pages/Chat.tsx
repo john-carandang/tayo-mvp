@@ -1,212 +1,329 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { Send, ArrowRight, Loader2, Bot } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { StepLayout } from "@/components/layout/StepLayout";
-import { useTayoState } from "@/hooks/use-tayo-state";
-import { useChat, useGeneratePlan } from "@workspace/api-client-react";
-import type { ChatMessage } from "@workspace/api-client-react";
+import { VoiceOrb, type OrbState } from "@/components/ui/VoiceOrb";
+import { useTayoProfile, useChatHistory } from "@/hooks/use-tayo-state";
 import { cn } from "@/lib/utils";
+import { ChevronRight } from "lucide-react";
+
+type VoiceState = "IDLE" | "AI_SPEAKING" | "USER_PROMPT" | "USER_RECORDING" | "PROCESSING" | "ERROR";
+
+const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
+async function speakText(text: string): Promise<HTMLAudioElement> {
+  const res = await fetch(`${BASE_URL}/api/speak`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error("TTS failed");
+  const blob = await res.blob();
+  return new Audio(URL.createObjectURL(blob));
+}
+
+async function transcribeAudio(blob: Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append("audio", blob, "recording.webm");
+  const res = await fetch(`${BASE_URL}/api/transcribe`, { method: "POST", body: formData });
+  if (!res.ok) throw new Error("Transcription failed");
+  const data = await res.json();
+  return data.text || "";
+}
+
+async function chatWithAI(
+  messages: Array<{ role: string; content: string }>,
+  systemPrompt: string
+): Promise<string> {
+  const res = await fetch(`${BASE_URL}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages, systemPrompt }),
+  });
+  if (!res.ok) throw new Error("Chat failed");
+  const data = await res.json();
+  return data.response || "";
+}
 
 export default function Chat() {
   const [, setLocation] = useLocation();
-  const { state, updateState, isHydrated } = useTayoState();
-  const [input, setInput] = useState("");
-  const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const { profile, isHydrated } = useTayoProfile();
+  const { history, setHistory } = useChatHistory();
 
-  const { mutateAsync: sendMessage, isPending: isSending } = useChat();
-  const { mutateAsync: generatePlan, isPending: isGeneratingPlan } = useGeneratePlan();
+  const [voiceState, setVoiceState] = useState<VoiceState>("IDLE");
+  const [currentAiText, setCurrentAiText] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const [planReady, setPlanReady] = useState(false);
+  const [plan, setPlan] = useState<string | null>(null);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isHydrated && !state.firstName) {
-      setLocation("/");
-    }
-  }, [isHydrated, state.firstName, setLocation]);
+    if (isHydrated && !profile) setLocation("/");
+  }, [isHydrated, profile, setLocation]);
 
   useEffect(() => {
-    endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [state.chatHistory]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [history]);
 
-  const generateSystemPrompt = () => {
-    const dimText = state.dimensions.map(d => 
-      `- ${d.name}: Thriving ${d.thriving}/10, Importance ${d.importance}/10. (Gap: ${d.importance - d.thriving}). User context: "${d.openText}"`
-    ).join("\n");
+  const buildSystemPrompt = useCallback(() => {
+    if (!profile) return "";
+    const dimText = profile.dimensions
+      .map(d => `- ${d.name}: Thriving ${d.thriving}/10, Importance ${d.importance}/10, Tier: ${d.tier}. Themes: ${d.themes?.join(", ") || "none"}`)
+      .join("\n");
+    const values = profile.values?.join(", ") || "not specified";
+    const purposeThemes = profile.purposeThemes?.join(", ") || "not specified";
 
-    return `You are Tayo, a warm, analytically precise life coach. The user's name is ${state.firstName}. 
-Their dimension scores are:
+    return `You are Tayo, a warm and incisive life coach. The user's name is ${profile.firstName}.
+
+Their life profile:
 ${dimText}
 
-Your objective: 
-1. Help the user make sense of their whole-person dashboard by exploring what their scores, gaps, and open-text responses reveal.
-2. Help them surface and articulate what they genuinely value and their authentic purpose.
-3. Lay the groundwork for a personal strategic plan.
+Core Values: ${values}
+Purpose Themes: ${purposeThemes}
+Overall Narrative: ${profile.overallNarrative}
 
-Be direct, insightful, and specific. Reference their actual data. Do not be generic. Keep responses concise and conversational (1-2 short paragraphs). End with a thought-provoking question.`;
+Your role: Help ${profile.firstName} go deeper on their insights, clarify what they want, and prepare them for their strategic plan. Be direct, specific, and reference their actual profile. Keep responses concise — 2-4 sentences. End each response with a focused question.`;
+  }, [profile]);
+
+  const stopAudio = () => {
+    audioRef.current?.pause();
+    audioRef.current = null;
   };
 
-  // Initialize chat with a greeting if empty
+  const playAI = useCallback(async (text: string) => {
+    stopAudio();
+    setCurrentAiText(text);
+    setVoiceState("AI_SPEAKING");
+    try {
+      const audio = await speakText(text);
+      audioRef.current = audio;
+      audio.play();
+      audio.onended = () => setVoiceState("USER_PROMPT");
+    } catch {
+      setVoiceState("USER_PROMPT");
+    }
+  }, []);
+
+  // Auto-start: greet the user when they first arrive
   useEffect(() => {
-    if (isHydrated && state.chatHistory.length === 0) {
-      const initGreeting = async () => {
-        const sysPrompt = generateSystemPrompt();
+    if (!isHydrated || !profile || history.length > 0) return;
+
+    const greet = async () => {
+      setVoiceState("PROCESSING");
+      try {
+        const greeting = await chatWithAI(
+          [{ role: "user", content: `Hello, I've completed my intake. I'm ready to go deeper with you, ${profile.firstName}.` }],
+          buildSystemPrompt()
+        );
+        const newHistory = [{ role: "assistant", content: greeting }];
+        setHistory(newHistory);
+        await playAI(greeting);
+      } catch {
+        setVoiceState("USER_PROMPT");
+      }
+    };
+    greet();
+  }, [isHydrated, profile]);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        setVoiceState("PROCESSING");
         try {
-          const res = await sendMessage({
-            data: {
-              messages: [{ role: "user", content: "Hello, I'm ready to discuss my dashboard." }],
-              systemPrompt: sysPrompt
-            }
-          });
-          updateState({
-            chatHistory: [{ role: "assistant", content: res.message }]
-          });
-        } catch (e) {
-          console.error("Failed to init chat", e);
-          updateState({
-            chatHistory: [{ role: "assistant", content: `Welcome ${state.firstName}. I've reviewed your dashboard. Let's explore what's standing out to you first.` }]
-          });
+          const text = await transcribeAudio(blob);
+          if (!text.trim()) { setVoiceState("USER_PROMPT"); return; }
+
+          const userMsg = { role: "user", content: text };
+          const updatedHistory = [...history, userMsg];
+          setHistory(updatedHistory);
+
+          const aiResponse = await chatWithAI(updatedHistory, buildSystemPrompt());
+          const assistantMsg = { role: "assistant", content: aiResponse };
+          setHistory([...updatedHistory, assistantMsg]);
+          await playAI(aiResponse);
+        } catch (err) {
+          console.error(err);
+          setVoiceState("ERROR");
+          setErrorMsg("Something went wrong. Tap to retry.");
         }
       };
-      initGreeting();
+
+      recorder.start();
+      setVoiceState("USER_RECORDING");
+    } catch {
+      setVoiceState("ERROR");
+      setErrorMsg("Microphone access denied.");
     }
-  }, [isHydrated, state.chatHistory.length]);
+  }, [history, buildSystemPrompt, setHistory, playAI]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isSending) return;
+  const stopRecording = useCallback(() => {
+    mediaRecorderRef.current?.state === "recording" && mediaRecorderRef.current.stop();
+  }, []);
 
-    const userMsg: ChatMessage = { role: "user", content: input };
-    const newHistory = [...state.chatHistory, userMsg];
-    
-    updateState({ chatHistory: newHistory });
-    setInput("");
+  const handleOrbClick = useCallback(() => {
+    if (voiceState === "USER_PROMPT") startRecording();
+    else if (voiceState === "USER_RECORDING") stopRecording();
+    else if (voiceState === "AI_SPEAKING") { stopAudio(); setVoiceState("USER_PROMPT"); }
+    else if (voiceState === "ERROR") { setVoiceState("USER_PROMPT"); setErrorMsg(""); }
+  }, [voiceState, startRecording, stopRecording]);
 
+  const handleGeneratePlan = useCallback(async () => {
+    if (!profile) return;
+    setIsGeneratingPlan(true);
+    stopAudio();
     try {
-      const res = await sendMessage({
-        data: {
-          messages: newHistory,
-          systemPrompt: generateSystemPrompt()
-        }
+      const res = await fetch(`${BASE_URL}/api/generate-plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, conversationHistory: history, firstName: profile.firstName }),
       });
-      updateState({
-        chatHistory: [...newHistory, { role: "assistant", content: res.message }]
-      });
-    } catch (error) {
-      console.error("Failed to send message", error);
-      updateState({
-        chatHistory: [...newHistory, { role: "assistant", content: "I'm having trouble connecting right now. Could you repeat that?" }]
-      });
+      if (!res.ok) throw new Error("Plan generation failed");
+      const data = await res.json();
+      localStorage.setItem("tayo_plan", data.plan);
+      setPlan(data.plan);
+      setPlanReady(true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsGeneratingPlan(false);
     }
-  };
+  }, [profile, history]);
 
-  const handleGeneratePlan = async () => {
-    try {
-      const res = await generatePlan({
-        data: {
-          conversationHistory: state.chatHistory,
-          dimensions: state.dimensions,
-          firstName: state.firstName
-        }
-      });
-      updateState({ plan: res.plan });
-      setLocation("/plan");
-    } catch (error) {
-      console.error("Failed to generate plan", error);
-    }
-  };
+  const orbStateDisplay: OrbState =
+    voiceState === "AI_SPEAKING" ? "speaking" :
+    voiceState === "USER_RECORDING" ? "listening" :
+    voiceState === "PROCESSING" ? "processing" : "idle";
 
-  if (!isHydrated) return null;
+  const orbLabel =
+    voiceState === "AI_SPEAKING" ? "Tap to skip" :
+    voiceState === "USER_PROMPT" ? "Tap to speak" :
+    voiceState === "USER_RECORDING" ? "Tap when done" :
+    voiceState === "PROCESSING" ? "Thinking…" :
+    voiceState === "ERROR" ? "Tap to retry" : "";
 
-  return (
-    <StepLayout step={3} title="Coaching Session">
-      <div className="w-full max-w-3xl mx-auto flex flex-col h-[70vh] bg-card rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-white/5 bg-background/50 backdrop-blur-md z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-              <Bot className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold">Tayo AI</h3>
-              <p className="text-xs text-primary flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Online
-              </p>
-            </div>
+  if (!isHydrated || !profile) return null;
+
+  if (planReady) {
+    return (
+      <StepLayout step={3} title="Coaching Complete">
+        <div className="flex flex-col items-center gap-6 py-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center">
+            <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
           </div>
+          <h2 className="text-2xl font-display">Your plan is ready</h2>
+          <p className="text-muted-foreground max-w-sm">
+            I've synthesized everything from your intake and our conversation into a personal strategic plan.
+          </p>
           <button
-            onClick={handleGeneratePlan}
-            disabled={isGeneratingPlan || state.chatHistory.length < 2}
-            className="text-xs sm:text-sm px-4 py-2 bg-primary text-black font-bold rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
+            onClick={() => setLocation("/plan")}
+            className="flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground rounded-full font-semibold hover:bg-primary/90 hover:scale-105 transition-all shadow-lg"
           >
-            {isGeneratingPlan ? <Loader2 className="w-4 h-4 animate-spin" /> : "Build My Plan"} 
-            <ArrowRight className="w-4 h-4" />
+            View My Strategic Plan
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
+      </StepLayout>
+    );
+  }
 
-        {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-          {state.chatHistory.map((msg, i) => (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              key={i}
-              className={cn(
-                "flex w-full",
-                msg.role === "user" ? "justify-end" : "justify-start"
-              )}
-            >
-              <div
-                className={cn(
-                  "max-w-[80%] rounded-2xl px-5 py-4 text-sm sm:text-base leading-relaxed",
-                  msg.role === "user" 
-                    ? "bg-primary text-primary-foreground rounded-tr-sm" 
-                    : "bg-white/5 border border-white/5 text-foreground rounded-tl-sm"
-                )}
+  return (
+    <StepLayout step={3} title="Coaching Session" subtitle={`Hello ${profile.firstName}, let's go deeper.`}>
+      <div className="flex flex-col items-center gap-6">
+
+        {/* Chat history */}
+        {history.length > 0 && (
+          <div className="w-full max-w-lg space-y-3 max-h-72 overflow-y-auto pr-1">
+            {history.map((msg, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
               >
-                {msg.content}
-              </div>
-            </motion.div>
-          ))}
-          {isSending && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-              <div className="bg-white/5 border border-white/5 rounded-2xl rounded-tl-sm px-5 py-4 flex gap-1.5 items-center">
-                <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
-                <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '0.2s' }} />
-                <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '0.4s' }} />
-              </div>
-            </motion.div>
-          )}
-          <div ref={endOfMessagesRef} className="h-4" />
-        </div>
-
-        {/* Input Area */}
-        <div className="p-4 bg-background/80 backdrop-blur-xl border-t border-white/5">
-          <form onSubmit={handleSend} className="relative flex items-center">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Reflect on your results..."
-              className="w-full bg-white/5 border border-white/10 rounded-full pl-6 pr-14 py-4 focus:outline-none focus:border-primary transition-colors text-sm"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || isSending}
-              className="absolute right-2 w-10 h-10 rounded-full bg-primary text-black flex items-center justify-center disabled:opacity-50 transition-opacity hover:bg-white"
-            >
-              <Send className="w-4 h-4 ml-0.5" />
-            </button>
-          </form>
-        </div>
-        
-        {/* Generating Plan Overlay */}
-        {isGeneratingPlan && (
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
-            <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-            <h3 className="text-xl font-display font-bold">Synthesizing Your Insights</h3>
-            <p className="text-muted-foreground mt-2">Drafting your personal strategic plan...</p>
+                <div className={cn(
+                  "max-w-xs sm:max-w-sm rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                  msg.role === "user"
+                    ? "bg-primary text-primary-foreground rounded-tr-sm"
+                    : "card-warm text-foreground rounded-tl-sm"
+                )}>
+                  {msg.content}
+                </div>
+              </motion.div>
+            ))}
+            <div ref={messagesEndRef} />
           </div>
         )}
+
+        {/* Current AI text while speaking */}
+        <AnimatePresence mode="wait">
+          {voiceState === "AI_SPEAKING" && currentAiText && (
+            <motion.p
+              key={currentAiText}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-sm text-center text-muted-foreground max-w-sm px-4 italic"
+            >
+              "{currentAiText}"
+            </motion.p>
+          )}
+        </AnimatePresence>
+
+        {/* Voice Orb */}
+        <VoiceOrb
+          state={orbStateDisplay}
+          size={100}
+          onClick={handleOrbClick}
+          label={orbLabel}
+        />
+
+        {errorMsg && (
+          <p className="text-sm text-destructive text-center">{errorMsg}</p>
+        )}
+
+        {/* Generate Plan button — available after a few exchanges */}
+        {history.filter(m => m.role === "user").length >= 2 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4"
+          >
+            <button
+              onClick={handleGeneratePlan}
+              disabled={isGeneratingPlan}
+              className="flex items-center gap-2 px-6 py-3 border-2 border-primary text-primary rounded-full font-semibold text-sm hover:bg-primary hover:text-primary-foreground transition-all disabled:opacity-50"
+            >
+              {isGeneratingPlan ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  Building your plan…
+                </>
+              ) : (
+                <>
+                  Build My Strategic Plan
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </motion.div>
+        )}
+
       </div>
     </StepLayout>
   );

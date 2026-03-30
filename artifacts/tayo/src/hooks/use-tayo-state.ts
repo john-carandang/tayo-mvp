@@ -1,82 +1,96 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import type { DimensionData, ChatMessage } from "@workspace/api-client-react";
+import { useState, useEffect } from "react";
 
-export interface TayoState {
+export interface TayoDimension {
+  name: string;
+  importance: number;
+  thriving: number;
+  tier: "foundational" | "growth" | "meaning";
+  themes: string[];
+  notableQuote: string;
+}
+
+export interface TayoLifeEvent {
+  label: string;
+  approximateYear: number;
+  chapterName: string;
+  actualizationLevel: number;
+  type: "peak" | "valley" | "turning_point" | "stable";
+}
+
+export interface TayoProfile {
   firstName: string;
-  dimensions: DimensionData[];
-  narrative?: string;
-  chatHistory: ChatMessage[];
-  plan?: string;
-  habits?: string;
+  dimensions: TayoDimension[];
+  lifeEvents: TayoLifeEvent[];
+  values: string[];
+  purposeThemes: string[];
+  overallNarrative: string;
 }
 
-const STORAGE_KEY = "tayo_session";
+const STORAGE_KEY = "tayo_profile";
+const CHAT_KEY = "tayo_chat_history";
+const PLAN_KEY = "tayo_plan";
 
-const INITIAL_STATE: TayoState = {
-  firstName: "",
-  dimensions: [
-    { name: "Mental & Emotional", thriving: 0, importance: 0, openText: "" },
-    { name: "Career", thriving: 0, importance: 0, openText: "" },
-    { name: "Physical", thriving: 0, importance: 0, openText: "" },
-    { name: "Social & Relationships", thriving: 0, importance: 0, openText: "" },
-    { name: "Financial", thriving: 0, importance: 0, openText: "" },
-  ],
-  chatHistory: [],
-};
-
-function readFromStorage(): TayoState {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as TayoState) : INITIAL_STATE;
-  } catch {
-    return INITIAL_STATE;
-  }
-}
-
-function writeToStorage(state: TayoState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore quota / private-browsing errors
-  }
-}
-
-export function useTayoState() {
-  const [state, setState] = useState<TayoState>(readFromStorage);
+export function useTayoProfile() {
+  const [profile, setProfileState] = useState<TayoProfile | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // Keep a ref that is always up-to-date with the latest state so that
-  // updateState can merge against it synchronously — without waiting for
-  // React's batched setState callback to be invoked.
-  const stateRef = useRef(state);
-
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        setProfileState(JSON.parse(raw));
+      }
+    } catch (_) {}
     setIsHydrated(true);
   }, []);
 
-  // Keep the ref in sync whenever React actually commits the state.
+  const setProfile = (p: TayoProfile) => {
+    setProfileState(p);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+  };
+
+  const clearProfile = () => {
+    setProfileState(null);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(CHAT_KEY);
+    localStorage.removeItem(PLAN_KEY);
+  };
+
+  return { profile, setProfile, clearProfile, isHydrated };
+}
+
+export function useChatHistory() {
+  const [history, setHistoryState] = useState<Array<{ role: string; content: string }>>([]);
+
   useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
-
-  /**
-   * Merge updates into state.  localStorage is written *synchronously* before
-   * setState is called so that any navigation triggered immediately after this
-   * call will find the fresh value in storage.
-   */
-  const updateState = useCallback((updates: Partial<TayoState>) => {
-    const next = { ...stateRef.current, ...updates };
-    stateRef.current = next;           // update ref immediately
-    writeToStorage(next);              // persist immediately, before re-render
-    console.log("[tayo] updateState →", Object.keys(updates), next);
-    setState(next);
+    try {
+      const raw = localStorage.getItem(CHAT_KEY);
+      if (raw) setHistoryState(JSON.parse(raw));
+    } catch (_) {}
   }, []);
 
-  const resetState = useCallback(() => {
-    stateRef.current = INITIAL_STATE;
-    writeToStorage(INITIAL_STATE);
-    setState(INITIAL_STATE);
+  const setHistory = (h: Array<{ role: string; content: string }>) => {
+    setHistoryState(h);
+    localStorage.setItem(CHAT_KEY, JSON.stringify(h));
+  };
+
+  return { history, setHistory };
+}
+
+export function usePlan() {
+  const [plan, setPlanState] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PLAN_KEY);
+      if (raw) setPlanState(raw);
+    } catch (_) {}
   }, []);
 
-  return { state, updateState, resetState, isHydrated };
+  const savePlan = (p: string) => {
+    setPlanState(p);
+    localStorage.setItem(PLAN_KEY, p);
+  };
+
+  return { plan, savePlan };
 }
