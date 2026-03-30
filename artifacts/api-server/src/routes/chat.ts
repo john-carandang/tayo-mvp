@@ -26,8 +26,13 @@ router.post("/transcribe", upload.single("audio"), async (req: Request, res: Res
       return;
     }
 
+    // Cast buffer to ArrayBuffer to satisfy File constructor typings
+    const arrayBuf = req.file.buffer.buffer.slice(
+      req.file.buffer.byteOffset,
+      req.file.buffer.byteOffset + req.file.buffer.byteLength
+    ) as ArrayBuffer;
     const transcription = await openai.audio.transcriptions.create({
-      file: new File([req.file.buffer], "audio.webm", { type: req.file.mimetype || "audio/webm" }),
+      file: new File([arrayBuf], "audio.webm", { type: req.file.mimetype || "audio/webm" }),
       model: "whisper-1",
     });
 
@@ -127,14 +132,15 @@ router.post("/extract-profile", async (req: Request, res: Response) => {
       firstName: string;
     };
 
-    const prompt = `You are an expert life coach analyst. Based on the following voice conversation transcript between Tayo (an AI life coach) and ${firstName}, extract a rich structured profile.
+    const nameHint = firstName ? `and ${firstName}` : "";
+    const prompt = `You are an expert life coach analyst. Based on the following voice conversation transcript between Tayo (an AI life coach) ${nameHint}, extract a rich structured profile.
 
 Conversation:
 ${conversationText}
 
 Return ONLY a valid JSON object matching this exact schema (no markdown, no explanation):
 {
-  "firstName": "${firstName}",
+  "firstName": "string (extract the user's first name from the conversation; use 'Friend' if not mentioned)",
   "dimensions": [
     {
       "name": "string (e.g. Emotional Wellbeing, Career & Purpose, Physical Health, Relationships, Financial Security)",

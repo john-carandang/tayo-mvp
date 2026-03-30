@@ -32,7 +32,7 @@ function thrivingColor(thriving: number): string {
   return "#6B3520";                        // low — deep mahogany
 }
 
-// ─── Per-Dimension Segmented SVG Pyramid ─────────────────────────────────────
+// ─── 3-Tier SVG Pyramid with per-dimension subdivision ───────────────────────
 function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
   const W = 340;
   const H = 320;
@@ -40,88 +40,96 @@ function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
   const apexY = 10;
   const baseY = H - 4;
 
-  // Order: meaning (top) → growth (middle) → foundational (bottom)
-  const ordered = [
-    ...dimensions.filter(d => d.tier === "meaning"),
-    ...dimensions.filter(d => d.tier === "growth"),
-    ...dimensions.filter(d => d.tier === "foundational"),
-  ];
+  // Split dimensions by tier
+  const meaningDims = dimensions.filter(d => d.tier === "meaning");
+  const growthDims = dimensions.filter(d => d.tier === "growth");
+  const foundDims = dimensions.filter(d => d.tier === "foundational");
 
-  const N = ordered.length;
-  if (N === 0) return <p className="text-sm text-muted-foreground text-center py-8">No dimensions to display.</p>;
+  // 3 equal tier y-boundaries
+  const totalH = baseY - apexY;
+  const tierH = totalH / 3;
+  const tierY = [apexY, apexY + tierH, apexY + 2 * tierH, baseY];
 
-  // At a given y, the pyramid half-width
+  // Half-width at a given y on the pyramid
   function halfW(y: number): number {
     return ((y - apexY) / (baseY - apexY)) * (W / 2 - 6);
   }
 
-  const segH = (baseY - apexY) / N;
+  // Subdivide one tier into equal trapezoid segments (one per dimension)
+  function makeTierSegments(dims: TayoDimension[], y1: number, y2: number) {
+    if (dims.length === 0) {
+      const hw1 = halfW(y1);
+      const hw2 = halfW(y2);
+      const pts = y1 <= apexY + 1
+        ? `${cx},${apexY} ${cx + hw2},${y2} ${cx - hw2},${y2}`
+        : `${cx - hw1},${y1} ${cx + hw1},${y1} ${cx + hw2},${y2} ${cx - hw2},${y2}`;
+      return [{ dim: null as TayoDimension | null, pts, midY: (y1 + y2) / 2, sy2: y2, hw2 }];
+    }
+    const segH = (y2 - y1) / dims.length;
+    return dims.map((dim, i) => {
+      const sy1 = y1 + i * segH;
+      const sy2 = y1 + (i + 1) * segH;
+      const hw1 = halfW(sy1);
+      const hw2 = halfW(sy2);
+      const midY = (sy1 + sy2) / 2;
+      const pts = sy1 <= apexY + 1
+        ? `${cx},${apexY} ${cx + hw2},${sy2} ${cx - hw2},${sy2}`
+        : `${cx - hw1},${sy1} ${cx + hw1},${sy1} ${cx + hw2},${sy2} ${cx - hw2},${sy2}`;
+      return { dim: dim as TayoDimension | null, pts, midY, sy2, hw2 };
+    });
+  }
 
-  const segments = ordered.map((dim, i) => {
-    const y1 = apexY + i * segH;
-    const y2 = apexY + (i + 1) * segH;
-    const hw1 = halfW(y1);
-    const hw2 = halfW(y2);
-    const midY = (y1 + y2) / 2;
+  const allSegs = [
+    ...makeTierSegments(meaningDims, tierY[0], tierY[1]),
+    ...makeTierSegments(growthDims, tierY[1], tierY[2]),
+    ...makeTierSegments(foundDims, tierY[2], tierY[3]),
+  ];
 
-    // Trapezoid (or triangle at very top)
-    const pts = i === 0
-      ? `${cx},${apexY} ${cx + hw2},${y2} ${cx - hw2},${y2}`
-      : `${cx - hw1},${y1} ${cx + hw1},${y1} ${cx + hw2},${y2} ${cx - hw2},${y2}`;
-
-    return { dim, y1, y2, midY, pts, hw1, hw2 };
-  });
+  // Tier divider line y-values and right-edge label positions
+  const tierMids = [(tierY[0] + tierY[1]) / 2, (tierY[1] + tierY[2]) / 2, (tierY[2] + tierY[3]) / 2];
+  const TIER_LABELS = ["MEANING", "GROWTH", "FOUNDATIONAL"];
 
   return (
     <div className="w-full max-w-xs mx-auto">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth: 320 }}>
-        {/* Per-dimension trapezoid segments */}
-        {segments.map(({ dim, pts, midY, y2, hw2 }) => (
-          <g key={dim.name}>
+        {/* Dimension segment polygons + labels */}
+        {allSegs.map(({ dim, pts, midY }, idx) => (
+          <g key={idx}>
             <polygon
               points={pts}
-              fill={thrivingColor(dim.thriving)}
-              stroke="#5C4A30"
-              strokeWidth="1.5"
-            />
-            {/* Dimension name — cream colored centered label */}
-            <text
-              x={cx}
-              y={midY - 3}
-              textAnchor="middle"
-              fontSize="11"
-              fontWeight="700"
-              fill="#F5F0E8"
-              fontFamily="DM Sans, sans-serif"
-              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
-            >
-              {dim.name.length > 22 ? dim.name.slice(0, 20) + "…" : dim.name}
-            </text>
-            <text
-              x={cx}
-              y={midY + 10}
-              textAnchor="middle"
-              fontSize="9"
-              fill="rgba(245,240,232,0.75)"
-              fontFamily="DM Sans, sans-serif"
-            >
-              {dim.thriving}/10 · {dim.tier}
-            </text>
-            {/* Divider line between segments */}
-            <line
-              x1={cx - hw2}
-              y1={y2}
-              x2={cx + hw2}
-              y2={y2}
-              stroke="#5C4A30"
+              fill={dim ? thrivingColor(dim.thriving) : "#8B6940"}
+              stroke="#2C1810"
               strokeWidth="1"
-              strokeDasharray="4,3"
-              opacity="0.5"
             />
+            {dim && (
+              <>
+                <text x={cx} y={midY - 3} textAnchor="middle" fontSize="11" fontWeight="700" fill="#F5F0E8" fontFamily="DM Sans, sans-serif">
+                  {dim.name.length > 22 ? dim.name.slice(0, 20) + "…" : dim.name}
+                </text>
+                <text x={cx} y={midY + 10} textAnchor="middle" fontSize="9" fill="rgba(245,240,232,0.72)" fontFamily="DM Sans, sans-serif">
+                  {dim.thriving}/10
+                </text>
+              </>
+            )}
+            {!dim && (
+              <text x={cx} y={midY + 4} textAnchor="middle" fontSize="10" fill="rgba(245,240,232,0.4)" fontFamily="DM Sans, sans-serif" fontStyle="italic">—</text>
+            )}
           </g>
         ))}
 
-        {/* Gold Self-Actualization apex tip per spec */}
+        {/* Tier boundary divider lines */}
+        {[tierY[1], tierY[2]].map((y, i) => (
+          <line key={i} x1={cx - halfW(y)} y1={y} x2={cx + halfW(y)} y2={y} stroke="#2C1810" strokeWidth="1.5" />
+        ))}
+
+        {/* Tier labels on right edge */}
+        {tierMids.map((midY, i) => (
+          <text key={i} x={cx + halfW(midY) + 5} y={midY + 4} fontSize="8" fill="rgba(44,24,16,0.5)" fontFamily="DM Sans, sans-serif" letterSpacing="0.5" fontWeight="600">
+            {TIER_LABELS[i]}
+          </text>
+        ))}
+
+        {/* Gold Self-Actualization apex tip */}
         <polygon
           points={`${cx},${apexY} ${cx - 14},${apexY + 22} ${cx + 14},${apexY + 22}`}
           fill="#D4A843"
@@ -129,7 +137,7 @@ function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
           strokeWidth="1.5"
         />
 
-        {/* Outer pyramid outline — warm brown #2C1810 per spec */}
+        {/* Warm brown outer outline */}
         <polygon
           points={`${cx},${apexY} ${cx - halfW(baseY)},${baseY} ${cx + halfW(baseY)},${baseY}`}
           fill="none"
@@ -240,11 +248,13 @@ export default function Dashboard() {
   const [orbState, setOrbState] = useState<OrbState>("idle");
   const [isNarrativePlaying, setIsNarrativePlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prefetchedAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (isHydrated && !profile) setLocation("/");
   }, [isHydrated, profile, setLocation]);
 
+  // Fetch narrative text then pre-fetch TTS audio (store Blob URL, do NOT auto-play)
   useEffect(() => {
     if (!profile || narrative) return;
     const fetchNarrative = async () => {
@@ -256,7 +266,13 @@ export default function Dashboard() {
           body: JSON.stringify({ profile }),
         });
         const data = await res.json();
-        setNarrative(data.narrative as string);
+        const narrativeText = data.narrative as string;
+        setNarrative(narrativeText);
+
+        // Pre-fetch TTS so it's instant on first Play click — do NOT auto-play
+        speakText(narrativeText)
+          .then(audio => { prefetchedAudioRef.current = audio; })
+          .catch(() => { /* prefetch failed — will fetch on demand */ });
       } catch {
         setNarrative(profile.overallNarrative ?? null);
       } finally {
@@ -278,10 +294,12 @@ export default function Dashboard() {
     setOrbState("speaking");
     setIsNarrativePlaying(true);
     try {
-      const audio = await speakText(narrative);
+      const audio = prefetchedAudioRef.current ?? await speakText(narrative);
+      prefetchedAudioRef.current = null;
       audioRef.current = audio;
       audio.play();
       audio.onended = () => { setIsNarrativePlaying(false); setOrbState("idle"); };
+      audio.onerror = () => { setIsNarrativePlaying(false); setOrbState("idle"); };
     } catch {
       setIsNarrativePlaying(false);
       setOrbState("idle");
