@@ -147,6 +147,7 @@ export default function Plan() {
   const [isNarrating, setIsNarrating] = useState(false);
   const [narrationStarted, setNarrationStarted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prefetchedAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("tayo_plan");
@@ -157,7 +158,7 @@ export default function Plan() {
     if (isHydrated && !profile) setLocation("/");
   }, [isHydrated, profile, setLocation]);
 
-  // Auto-start narration on load once plan is ready
+  // Pre-fetch TTS audio on load so it plays instantly on first click — do NOT auto-play
   useEffect(() => {
     if (!plan || narrationStarted) return;
     setNarrationStarted(true);
@@ -165,19 +166,12 @@ export default function Plan() {
     const preview = plan.slice(0, 500);
     const narrationText = `Here is ${profile?.firstName ?? "your"} personal strategic plan. ${preview}`;
 
-    setOrbState("speaking");
-    setIsNarrating(true);
-
     speakText(narrationText)
       .then((audio) => {
-        audioRef.current = audio;
-        audio.play();
-        audio.onended = () => { setIsNarrating(false); setOrbState("idle"); };
-        audio.onerror = () => { setIsNarrating(false); setOrbState("idle"); };
+        prefetchedAudioRef.current = audio;
       })
       .catch(() => {
-        setIsNarrating(false);
-        setOrbState("idle");
+        // Prefetch failed — will fetch on demand when user clicks Listen
       });
   }, [plan, narrationStarted, profile]);
 
@@ -193,11 +187,14 @@ export default function Plan() {
     setOrbState("speaking");
     setIsNarrating(true);
     try {
-      const preview = plan.slice(0, 500);
-      const audio = await speakText(`Here is ${profile?.firstName ?? "your"} personal strategic plan. ${preview}`);
+      // Use pre-fetched audio if ready, otherwise fetch now
+      const audio = prefetchedAudioRef.current
+        ?? await speakText(`Here is ${profile?.firstName ?? "your"} personal strategic plan. ${plan.slice(0, 500)}`);
+      prefetchedAudioRef.current = null;
       audioRef.current = audio;
       audio.play();
       audio.onended = () => { setIsNarrating(false); setOrbState("idle"); };
+      audio.onerror = () => { setIsNarrating(false); setOrbState("idle"); };
     } catch {
       setIsNarrating(false);
       setOrbState("idle");

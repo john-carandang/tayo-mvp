@@ -1,12 +1,13 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { StepLayout } from "@/components/layout/StepLayout";
 import { VoiceOrb, type OrbState } from "@/components/ui/VoiceOrb";
 import { useTayoProfile, type TayoProfile } from "@/hooks/use-tayo-state";
 import { cn } from "@/lib/utils";
+import { RefreshCw } from "lucide-react";
 
-type VoiceState = "IDLE" | "AI_SPEAKING" | "USER_PROMPT" | "USER_RECORDING" | "PROCESSING" | "ERROR";
+type VoiceState = "LOADING" | "AI_SPEAKING" | "USER_PROMPT" | "USER_RECORDING" | "PROCESSING" | "ERROR" | "EXTRACTING";
 
 interface Message {
   role: "user" | "assistant";
@@ -22,21 +23,13 @@ const PHASE_QUESTIONS = [
   "Is there anything else — something you haven't shared yet — that feels important for me to know as I build your profile?"
 ];
 
-const PHASE_LABELS = [
-  "Introduction",
-  "Your Story",
-  "Life Areas",
-  "Values",
-  "Purpose",
-  "Final Thoughts"
-];
+const PHASE_LABELS = ["Introduction", "Your Story", "Life Areas", "Values", "Purpose", "Final Thoughts"];
 
 const SYSTEM_PROMPT = `You are Tayo, a warm, perceptive life coach conducting a voice intake conversation.
 Your goal across 6 phases is to deeply understand the user's current life situation, key life events, values, and sense of purpose.
 - Be genuinely curious and empathetic
-- Ask thoughtful follow-up questions to draw out specific details
 - Keep responses conversational and warm — 2-4 sentences max
-- Do not number your responses or label phases`;
+- Do not number responses or mention phase numbers`;
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -86,45 +79,44 @@ export default function Intake() {
   const [, setLocation] = useLocation();
   const { setProfile } = useTayoProfile();
 
-  const [voiceState, setVoiceState] = useState<VoiceState>("IDLE");
+  const [voiceState, setVoiceState] = useState<VoiceState>("LOADING");
   const [phase, setPhase] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
   const [transcript, setTranscript] = useState<string[]>([]);
-  const [aiText, setAiText] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [hasStarted, setHasStarted] = useState(false);
-  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractError, setExtractError] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const messagesRef = useRef<Message[]>([]);
   const transcriptRef = useRef<string[]>([]);
+  const phaseRef = useRef(0);
 
   const stopAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
   };
 
   const playAI = useCallback(async (text: string): Promise<void> => {
     stopAudio();
-    setAiText(text);
     setVoiceState("AI_SPEAKING");
     return new Promise((resolve) => {
       speakText(text)
         .then((audio) => {
           audioRef.current = audio;
-          audio.play();
-          audio.onended = () => {
-            setVoiceState("USER_PROMPT");
-            resolve();
-          };
-          audio.onerror = () => {
-            setVoiceState("USER_PROMPT");
-            resolve();
-          };
+          // Try auto-play (may fail without prior user gesture)
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(() => {
+              // Autoplay blocked — still show AI text, transition to prompt state
+            });
+          }
+          audio.onended = () => { setVoiceState("USER_PROMPT"); resolve(); };
+          audio.onerror = () => { setVoiceState("USER_PROMPT"); resolve(); };
+          // Safety timeout
+          setTimeout(() => {
+            if (voiceState === "AI_SPEAKING") { setVoiceState("USER_PROMPT"); resolve(); }
+          }, 30000);
         })
         .catch(() => {
           setVoiceState("USER_PROMPT");
@@ -133,48 +125,58 @@ export default function Intake() {
     });
   }, []);
 
-  const doExtractProfile = useCallback(async (finalMessages: Message[], finalTranscript: string[]) => {
-    setIsExtracting(true);
-    setVoiceState("PROCESSING");
+  const addMessage = useCallback((msg: Message) => {
+    const updated = [...messagesRef.current, msg];
+    messagesRef.current = updated;
+    setMessages(updated);
+    return updated;
+  }, []);
+
+  // Auto-greet on mount — call /api/chat immediately
+  useEffect(() => {
+    let cancelled = false;
+    const greet = async () => {
+      try {
+        const openingPrompt = `You are Tayo, a warm life coach beginning a voice intake session. 
+Introduce yourself warmly in 1 sentence, then ask: "${PHASE_QUESTIONS[0]}"
+Be natural and welcoming.`;
+        const greeting = await chatWithAI(
+          [{ role: "user", content: "Hello, I'm starting my intake session with Tayo." }],
+          openingPrompt
+        );
+        if (cancelled) return;
+        const msg: Message = { role: "assistant", content: greeting };
+        messagesRef.current = [msg];
+        setMessages([msg]);
+        await playAI(greeting);
+      } catch {
+        if (!cancelled) {
+          setVoiceState("ERROR");
+          setErrorMsg("Failed to connect. Please tap to retry.");
+        }
+      }
+    };
+    greet();
+    return () => { cancelled = true; };
+  }, []);
+
+  const doExtractProfile = useCallback(async () => {
+    setVoiceState("EXTRACTING");
+    setExtractError(false);
     try {
-      const conversationText = finalMessages
+      const conversationText = messagesRef.current
         .map(m => `${m.role === "user" ? "User" : "Tayo"}: ${m.content}`)
         .join("\n\n");
-
-      const firstWord = (finalTranscript[0] ?? "").split(/[\s,!.]+/)[0].replace(/[^a-zA-Z]/g, "");
+      const firstWord = (transcriptRef.current[0] ?? "").split(/[\s,!.]+/)[0].replace(/[^a-zA-Z]/g, "");
       const firstName = firstWord || "Friend";
-
       const profile = await extractProfile(conversationText, firstName);
       setProfile(profile);
       setLocation("/dashboard");
-    } catch (err) {
-      console.error("Profile extraction failed:", err);
-      setIsExtracting(false);
-      setVoiceState("ERROR");
-      setErrorMsg("Failed to build your profile. Please tap to try again.");
+    } catch {
+      setVoiceState("USER_PROMPT");
+      setExtractError(true);
     }
   }, [setProfile, setLocation]);
-
-  const startConversation = useCallback(async () => {
-    setHasStarted(true);
-    setVoiceState("PROCESSING");
-    try {
-      // Generate the opening greeting via Claude
-      const openingPrompt = `You are Tayo, a warm life coach. Introduce yourself briefly (1 sentence) and then ask: "${PHASE_QUESTIONS[0]}" Keep it natural and welcoming.`;
-      const greeting = await chatWithAI(
-        [{ role: "user", content: "Hello, I'm ready to begin my intake." }],
-        openingPrompt
-      );
-      const assistantMsg: Message = { role: "assistant", content: greeting };
-      const newMessages = [assistantMsg];
-      setMessages(newMessages);
-      messagesRef.current = newMessages;
-      await playAI(greeting);
-    } catch {
-      setVoiceState("ERROR");
-      setErrorMsg("Failed to start. Please tap to retry.");
-    }
-  }, [playAI]);
 
   const startRecording = useCallback(async () => {
     try {
@@ -183,9 +185,7 @@ export default function Intake() {
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
 
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
 
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
@@ -196,51 +196,33 @@ export default function Intake() {
           if (!text.trim()) { setVoiceState("USER_PROMPT"); return; }
 
           const userMsg: Message = { role: "user", content: text };
-          const currentMessages = messagesRef.current;
-          const updatedMessages = [...currentMessages, userMsg];
-          messagesRef.current = updatedMessages;
-          setMessages(updatedMessages);
+          const updatedMessages = addMessage(userMsg);
+          const updatedTranscript = [...transcriptRef.current, text];
+          transcriptRef.current = updatedTranscript;
+          setTranscript(updatedTranscript);
 
-          const currentTranscript = [...transcriptRef.current, text];
-          transcriptRef.current = currentTranscript;
-          setTranscript(currentTranscript);
-
-          const nextPhase = phase + 1;
+          const currentPhase = phaseRef.current;
+          const nextPhase = currentPhase + 1;
 
           if (nextPhase >= PHASE_QUESTIONS.length) {
-            // Phase 6 complete — let Claude close the conversation, then auto-extract
-            const closingSystemPrompt = `${SYSTEM_PROMPT}
-
-This is the final phase. Respond warmly to what the user just said (1-2 sentences) and close the conversation gracefully, letting them know their profile is being built.`;
-
-            const aiResponse = await chatWithAI(updatedMessages, closingSystemPrompt);
-            const closingMsg: Message = { role: "assistant", content: aiResponse };
-            const finalMessages = [...updatedMessages, closingMsg];
-            messagesRef.current = finalMessages;
-            setMessages(finalMessages);
-
-            // Play the closing response, then immediately auto-extract
+            const closingPrompt = `${SYSTEM_PROMPT}
+This is the final phase. Respond warmly (1-2 sentences) and let the user know their profile is being built.`;
+            const aiResponse = await chatWithAI(updatedMessages, closingPrompt);
+            addMessage({ role: "assistant", content: aiResponse });
             await playAI(aiResponse);
-            await doExtractProfile(finalMessages, currentTranscript);
+            await doExtractProfile();
             return;
           }
 
-          // Intermediate phase — Claude responds and transitions to next question
           const transitionPrompt = `${SYSTEM_PROMPT}
-
-You've just heard the user's response to phase ${phase + 1} of 6.
-Respond warmly to what they said (1-2 sentences), then organically transition to asking: "${PHASE_QUESTIONS[nextPhase]}"
-Do NOT say "phase" or mention any numbering. Keep it conversational.`;
-
+Respond warmly to what the user said (1-2 sentences), then ask: "${PHASE_QUESTIONS[nextPhase]}"
+Do NOT mention phase numbers.`;
           const aiResponse = await chatWithAI(updatedMessages, transitionPrompt);
-          const assistantMsg: Message = { role: "assistant", content: aiResponse };
-          const newMessages = [...updatedMessages, assistantMsg];
-          messagesRef.current = newMessages;
-          setMessages(newMessages);
+          addMessage({ role: "assistant", content: aiResponse });
+          phaseRef.current = nextPhase;
           setPhase(nextPhase);
           await playAI(aiResponse);
-        } catch (err) {
-          console.error("Processing error:", err);
+        } catch {
           setVoiceState("ERROR");
           setErrorMsg("Something went wrong. Tap to retry.");
         }
@@ -250,42 +232,30 @@ Do NOT say "phase" or mention any numbering. Keep it conversational.`;
       setVoiceState("USER_RECORDING");
     } catch {
       setVoiceState("ERROR");
-      setErrorMsg("Microphone access denied. Please allow microphone access.");
+      setErrorMsg("Microphone access denied.");
     }
-  }, [phase, playAI, doExtractProfile]);
+  }, [addMessage, playAI, doExtractProfile]);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current?.state === "recording") {
-      mediaRecorderRef.current.stop();
-    }
+    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
   }, []);
 
   const handleOrbClick = useCallback(() => {
-    if (isExtracting) return;
-    if (!hasStarted && voiceState === "IDLE") {
-      startConversation();
-    } else if (voiceState === "USER_PROMPT") {
-      startRecording();
-    } else if (voiceState === "USER_RECORDING") {
-      stopRecording();
-    } else if (voiceState === "AI_SPEAKING") {
-      stopAudio();
-      setVoiceState("USER_PROMPT");
-    } else if (voiceState === "ERROR") {
-      setVoiceState(hasStarted ? "USER_PROMPT" : "IDLE");
-      setErrorMsg("");
-    }
-  }, [voiceState, hasStarted, isExtracting, startConversation, startRecording, stopRecording]);
+    if (voiceState === "USER_PROMPT") startRecording();
+    else if (voiceState === "USER_RECORDING") stopRecording();
+    else if (voiceState === "AI_SPEAKING") { stopAudio(); setVoiceState("USER_PROMPT"); }
+    else if (voiceState === "ERROR") { setVoiceState("USER_PROMPT"); setErrorMsg(""); }
+  }, [voiceState, startRecording, stopRecording]);
 
   const orbState: OrbState =
-    isExtracting ? "processing" :
+    voiceState === "LOADING" || voiceState === "PROCESSING" ? "processing" :
+    voiceState === "EXTRACTING" ? "processing" :
     voiceState === "AI_SPEAKING" ? "speaking" :
-    voiceState === "USER_RECORDING" ? "listening" :
-    voiceState === "PROCESSING" ? "processing" : "idle";
+    voiceState === "USER_RECORDING" ? "listening" : "idle";
 
   const orbLabel =
-    isExtracting ? "Building your profile…" :
-    !hasStarted ? "Tap to begin" :
+    voiceState === "LOADING" ? "Connecting…" :
+    voiceState === "EXTRACTING" ? "Building profile…" :
     voiceState === "AI_SPEAKING" ? "Tap to skip" :
     voiceState === "USER_PROMPT" ? "Tap to speak" :
     voiceState === "USER_RECORDING" ? "Tap when done" :
@@ -294,10 +264,10 @@ Do NOT say "phase" or mention any numbering. Keep it conversational.`;
 
   return (
     <StepLayout step={1} title="Your Voice Intake" subtitle="A guided conversation to understand where you are in life.">
-      <div className="flex flex-col items-center gap-8 pt-8">
+      <div className="flex flex-col items-center gap-6 pt-6">
 
         {/* Phase progress */}
-        {hasStarted && !isExtracting && (
+        {messages.length > 0 && voiceState !== "EXTRACTING" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2">
             {PHASE_QUESTIONS.map((_, i) => (
               <div
@@ -317,42 +287,34 @@ Do NOT say "phase" or mention any numbering. Keep it conversational.`;
         )}
 
         {/* Voice Orb */}
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
           <VoiceOrb
             state={orbState}
             size={160}
             onClick={handleOrbClick}
             label={orbLabel}
-            disabled={isExtracting || voiceState === "PROCESSING"}
+            disabled={voiceState === "LOADING" || voiceState === "PROCESSING" || voiceState === "EXTRACTING"}
           />
         </motion.div>
 
-        {/* Current AI speech text */}
-        <AnimatePresence mode="wait">
-          {aiText && hasStarted && !isExtracting && (
-            <motion.div
-              key={aiText}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="max-w-lg text-center px-4"
-            >
-              <p className="text-base leading-relaxed text-foreground/75 italic">
-                "{aiText}"
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Extracting overlay message */}
-        {isExtracting && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-3 text-center px-4"
-          >
+        {/* Extracting state */}
+        {voiceState === "EXTRACTING" && (
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-1">
             <p className="text-base font-medium text-foreground">Building your profile…</p>
             <p className="text-sm text-muted-foreground">Analysing your conversation and preparing your dashboard.</p>
+          </motion.div>
+        )}
+
+        {/* Extraction retry */}
+        {extractError && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-3">
+            <p className="text-sm text-destructive">Failed to build profile.</p>
+            <button
+              onClick={doExtractProfile}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-full text-sm font-semibold"
+            >
+              <RefreshCw className="w-4 h-4" /> Try Again
+            </button>
           </motion.div>
         )}
 
@@ -363,33 +325,36 @@ Do NOT say "phase" or mention any numbering. Keep it conversational.`;
           </motion.p>
         )}
 
-        {/* Recent transcript snippets */}
-        {transcript.length > 0 && !isExtracting && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-lg">
-            <div className="card-warm p-4 space-y-2 max-h-28 overflow-y-auto">
-              {transcript.slice(-3).map((t, i) => (
-                <p key={i} className="text-xs text-muted-foreground leading-relaxed">
-                  <span className="font-semibold text-foreground/50">You: </span>{t}
-                </p>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Intro text when not started */}
-        {!hasStarted && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="max-w-md text-center px-4 space-y-3"
-          >
-            <p className="text-muted-foreground leading-relaxed">
-              Tayo will guide you through a 6-phase voice conversation — covering your story, life areas, values, and purpose.
-            </p>
-            <p className="text-xs text-muted-foreground/60">Speak naturally. This takes about 10–15 minutes.</p>
-          </motion.div>
-        )}
+        {/* Full bidirectional transcript — all turns */}
+        <AnimatePresence>
+          {messages.length > 0 && voiceState !== "EXTRACTING" && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-lg"
+            >
+              <div className="card-warm p-4 space-y-3 max-h-52 overflow-y-auto">
+                {messages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+                  >
+                    <div
+                      className={cn(
+                        "max-w-xs rounded-2xl px-4 py-2.5 text-xs leading-relaxed",
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground rounded-tr-sm"
+                          : "bg-background/60 border border-border text-foreground rounded-tl-sm"
+                      )}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </div>
     </StepLayout>

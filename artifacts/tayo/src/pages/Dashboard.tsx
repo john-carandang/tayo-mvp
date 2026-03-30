@@ -32,134 +32,121 @@ function thrivingColor(thriving: number): string {
   return "#E07020";                        // orange/warm
 }
 
-// ─── Proper SVG Pyramid ───────────────────────────────────────────────────────
+// ─── Per-Dimension Segmented SVG Pyramid ─────────────────────────────────────
 function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
   const W = 340;
   const H = 320;
   const cx = W / 2;
+  const apexY = 10;
+  const baseY = H - 4;
 
-  // Pyramid apex and base
-  const apex = { x: cx, y: 6 };
-  const baseLeft = { x: 4, y: H - 4 };
-  const baseRight = { x: W - 4, y: H - 4 };
+  // Order: meaning (top) → growth (middle) → foundational (bottom)
+  const ordered = [
+    ...dimensions.filter(d => d.tier === "meaning"),
+    ...dimensions.filter(d => d.tier === "growth"),
+    ...dimensions.filter(d => d.tier === "foundational"),
+  ];
 
-  // Tier dividers at y=115 and y=215 (roughly 1/3 each)
-  const tier1Y = 115;   // meaning top boundary
-  const tier2Y = 215;   // growth top boundary
+  const N = ordered.length;
+  if (N === 0) return <p className="text-sm text-muted-foreground text-center py-8">No dimensions to display.</p>;
 
-  // Compute x edges at a given y on the pyramid triangle
-  function edgeX(y: number): { left: number; right: number } {
-    const t = (y - apex.y) / (baseLeft.y - apex.y);
-    const left = apex.x + t * (baseLeft.x - apex.x);
-    const right = apex.x + t * (baseRight.x - apex.x);
-    return { left, right };
+  // At a given y, the pyramid half-width
+  function halfW(y: number): number {
+    return ((y - apexY) / (baseY - apexY)) * (W / 2 - 6);
   }
 
-  const t1 = edgeX(tier1Y);
-  const t2 = edgeX(tier2Y);
+  const segH = (baseY - apexY) / N;
 
-  // Tier polygons
-  const meaningPts = `${apex.x},${apex.y} ${t1.right},${tier1Y} ${t1.left},${tier1Y}`;
-  const growthPts = `${t1.left},${tier1Y} ${t1.right},${tier1Y} ${t2.right},${tier2Y} ${t2.left},${tier2Y}`;
-  const foundPts = `${t2.left},${tier2Y} ${t2.right},${tier2Y} ${baseRight.x},${baseLeft.y} ${baseLeft.x},${baseLeft.y}`;
+  const segments = ordered.map((dim, i) => {
+    const y1 = apexY + i * segH;
+    const y2 = apexY + (i + 1) * segH;
+    const hw1 = halfW(y1);
+    const hw2 = halfW(y2);
+    const midY = (y1 + y2) / 2;
 
-  const byTier = {
-    meaning: dimensions.filter(d => d.tier === "meaning"),
-    growth: dimensions.filter(d => d.tier === "growth"),
-    foundational: dimensions.filter(d => d.tier === "foundational"),
-  };
+    // Trapezoid (or triangle at very top)
+    const pts = i === 0
+      ? `${cx},${apexY} ${cx + hw2},${y2} ${cx - hw2},${y2}`
+      : `${cx - hw1},${y1} ${cx + hw1},${y1} ${cx + hw2},${y2} ${cx - hw2},${y2}`;
 
-  // Tier label positions
-  const meaningMidY = (apex.y + tier1Y) / 2 + 2;
-  const growthMidY = (tier1Y + tier2Y) / 2;
-  const foundMidY = (tier2Y + H) / 2 - 4;
-
-  function renderDimLabels(
-    dims: TayoDimension[],
-    midY: number,
-    availWidth: number
-  ) {
-    if (dims.length === 0) return null;
-    const lineHeight = 16;
-    const startY = midY - ((dims.length - 1) * lineHeight) / 2;
-    return dims.map((d, i) => (
-      <g key={d.name}>
-        <text
-          x={cx}
-          y={startY + i * lineHeight + 4}
-          textAnchor="middle"
-          fontSize="11"
-          fontWeight="600"
-          fill={thrivingColor(d.thriving)}
-          fontFamily="DM Sans, sans-serif"
-        >
-          {d.name}
-        </text>
-        <text
-          x={cx}
-          y={startY + i * lineHeight + 14}
-          textAnchor="middle"
-          fontSize="9"
-          fill="rgba(255,255,255,0.7)"
-          fontFamily="DM Sans, sans-serif"
-        >
-          {d.thriving}/10
-        </text>
-      </g>
-    ));
-  }
-
-  // Available widths at midpoints
-  const meaningAvgY = (apex.y + tier1Y) / 2;
-  const growthAvgY = (tier1Y + tier2Y) / 2;
-  const foundAvgY = (tier2Y + H) / 2;
+    return { dim, y1, y2, midY, pts, hw1, hw2 };
+  });
 
   return (
     <div className="w-full max-w-xs mx-auto">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth: 320 }}>
-        {/* Tier fills */}
-        <polygon points={foundPts} fill="#638863" stroke="#5C4A30" strokeWidth="2" />
-        <polygon points={growthPts} fill="#D4A024" stroke="#5C4A30" strokeWidth="2" />
-        <polygon points={meaningPts} fill="#E07020" stroke="#5C4A30" strokeWidth="2" />
+        {/* Per-dimension trapezoid segments */}
+        {segments.map(({ dim, pts, midY, y2, hw2 }) => (
+          <g key={dim.name}>
+            <polygon
+              points={pts}
+              fill={thrivingColor(dim.thriving)}
+              stroke="#5C4A30"
+              strokeWidth="1.5"
+            />
+            {/* Dimension name — cream colored centered label */}
+            <text
+              x={cx}
+              y={midY - 3}
+              textAnchor="middle"
+              fontSize="11"
+              fontWeight="700"
+              fill="#F5F0E8"
+              fontFamily="DM Sans, sans-serif"
+              style={{ textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}
+            >
+              {dim.name.length > 22 ? dim.name.slice(0, 20) + "…" : dim.name}
+            </text>
+            <text
+              x={cx}
+              y={midY + 10}
+              textAnchor="middle"
+              fontSize="9"
+              fill="rgba(245,240,232,0.75)"
+              fontFamily="DM Sans, sans-serif"
+            >
+              {dim.thriving}/10 · {dim.tier}
+            </text>
+            {/* Divider line between segments */}
+            <line
+              x1={cx - hw2}
+              y1={y2}
+              x2={cx + hw2}
+              y2={y2}
+              stroke="#5C4A30"
+              strokeWidth="1"
+              strokeDasharray="4,3"
+              opacity="0.5"
+            />
+          </g>
+        ))}
 
-        {/* Gold apex tip highlight */}
+        {/* Gold apex tip overlay */}
         <polygon
-          points={`${cx},${apex.y} ${cx - 18},${apex.y + 32} ${cx + 18},${apex.y + 32}`}
+          points={`${cx},${apexY} ${cx - 14},${apexY + 22} ${cx + 14},${apexY + 22}`}
           fill="#F0C040"
           stroke="#5C4A30"
           strokeWidth="1.5"
         />
 
-        {/* Tier divider lines */}
-        <line x1={t1.left} y1={tier1Y} x2={t1.right} y2={tier1Y} stroke="#5C4A30" strokeWidth="1.5" />
-        <line x1={t2.left} y1={tier2Y} x2={t2.right} y2={tier2Y} stroke="#5C4A30" strokeWidth="1.5" />
-
-        {/* Tier label text */}
-        <text x={cx} y={tier1Y - 5} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.6)" fontFamily="DM Sans, sans-serif" letterSpacing="1">
-          MEANING
-        </text>
-        <text x={cx} y={tier2Y - 5} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.6)" fontFamily="DM Sans, sans-serif" letterSpacing="1">
-          GROWTH
-        </text>
-        <text x={cx} y={H - 8} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.6)" fontFamily="DM Sans, sans-serif" letterSpacing="1">
-          FOUNDATIONAL
-        </text>
-
-        {/* Dimension labels in each tier */}
-        {renderDimLabels(byTier.meaning, meaningMidY, edgeX(meaningAvgY).right - edgeX(meaningAvgY).left)}
-        {renderDimLabels(byTier.growth, growthMidY, edgeX(growthAvgY).right - edgeX(growthAvgY).left)}
-        {renderDimLabels(byTier.foundational, foundMidY, edgeX(foundAvgY).right - edgeX(foundAvgY).left)}
+        {/* Outer pyramid outline */}
+        <polygon
+          points={`${cx},${apexY} ${cx - halfW(baseY)},${baseY} ${cx + halfW(baseY)},${baseY}`}
+          fill="none"
+          stroke="#5C4A30"
+          strokeWidth="2"
+        />
       </svg>
 
       {/* Legend */}
-      <div className="flex justify-center gap-4 mt-3">
+      <div className="flex flex-wrap justify-center gap-3 mt-3">
         {[
           { label: "Thriving (7+)", color: "#638863" },
-          { label: "Developing (4-6)", color: "#D4A024" },
+          { label: "Developing (4–6)", color: "#D4A024" },
           { label: "Needs focus (<4)", color: "#E07020" },
         ].map(({ label, color }) => (
           <div key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
             <span>{label}</span>
           </div>
         ))}
