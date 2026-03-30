@@ -8,9 +8,10 @@ interface StepLayoutProps {
   step: number;
   title?: string;
   subtitle?: string;
+  description?: string;
 }
 
-export function StepLayout({ children, step, title, subtitle }: StepLayoutProps) {
+export function StepLayout({ children, step, title, subtitle, description }: StepLayoutProps) {
   const [, setLocation] = useLocation();
 
   return (
@@ -51,6 +52,19 @@ export function StepLayout({ children, step, title, subtitle }: StepLayoutProps)
               </h1>
               {subtitle && (
                 <p className="text-sm text-muted-foreground">{subtitle}</p>
+              )}
+              {description && (
+                <p style={{
+                  color: "#9B8E84",
+                  fontStyle: "italic",
+                  fontSize: "13px",
+                  textAlign: "center",
+                  maxWidth: "480px",
+                  margin: "10px auto 0",
+                  lineHeight: "1.65",
+                }}>
+                  {description}
+                </p>
               )}
             </motion.div>
           )}

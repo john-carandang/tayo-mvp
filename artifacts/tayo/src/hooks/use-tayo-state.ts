@@ -7,6 +7,8 @@ export interface TayoDimension {
   tier: "foundational" | "growth" | "meaning";
   themes: string[];
   notableQuote: string;
+  roleDescriptor?: string;
+  legendDescription?: string;
 }
 
 export interface TayoLifeEvent {

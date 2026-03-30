@@ -1,0 +1,158 @@
+Do not rebuild from scratch. Make the following targeted changes to the existing codebase only.
+
+1. STEP DESCRIPTIONS — ALL FOUR STEPS
+Below each step title and above the main UI element on every step, add a 2–3 sentence description in grey italics (color: #9B8E84, font-style: italic, font-size: 13px, text-align: center, max-width: 480px, margin: 0 auto 24px). Use these exact descriptions:
+Step 1 — Voice Intake:
+"This is your space to reflect honestly on your life — your journey, your dimensions of wellbeing, and what matters most to you. Tayo will guide you through a natural conversation at your own pace. Plan for around 15–20 minutes to get the most out of this session."
+Step 2 — Dashboard:
+"Here is a snapshot of who you are today, built from your conversation with Tayo. Explore each view to understand your whole self — your journey, your current state, and where to focus next."
+Step 3 — Coaching Session:
+"This is your space to go deeper with Tayo — making sense of your dashboard, exploring your values, and preparing to articulate your life's direction. Plan for around 10–15 minutes."
+Step 4 — Strategic Plan:
+"Your personal strategic plan, built from everything you shared. This is a living document — a mirror of who you are and a compass for where you are going."
+
+2. AI VOICE OPENING — ALL FOUR STEPS
+At the start of each step, before any user interaction, Tayo's AI voice must deliver a warm spoken introduction explaining the step, the time required, and how to get the most out of it. These replace or prepend the current opening messages.
+Add to each step's Claude system prompt as the required first message:
+Step 1 system prompt — prepend:
+"Your very first message must do the following: Welcome the user warmly to Tayo. Explain that in this session you will explore their life journey together — their story, the key dimensions of their wellbeing, their values, and what matters most to them. Tell them to plan for around 15 to 20 minutes, and that the more openly they share, the richer their insights will be. Encourage them to find a quiet space, speak naturally, and not worry about getting things 'right' — there are no wrong answers. Then ask their name to begin. Keep this opening under 80 words."
+Step 3 system prompt — prepend:
+"Your very first message must do the following: Welcome the user back by name. Tell them this session is about going deeper — making sense of what their dashboard revealed, exploring their values and purpose, and preparing for their strategic plan. Tell them to plan for around 10 to 15 minutes. Invite them to speak freely and honestly. Then ask an opening question that connects to something specific from their profile. Keep this opening under 80 words."
+
+3. RESPONSE TIME — FULL PIPELINE OPTIMIZATION
+Both the transcription-to-response gap and the response-to-audio gap are too slow. Apply all of the following optimizations:
+A. Switch ElevenLabs to turbo model:
+In /api/speak, change model_id from eleven_monolingual_v1 to eleven_turbo_v2. This cuts TTS generation time by approximately 60% with minimal quality loss.
+B. Stream Claude responses sentence by sentence:
+In /api/chat, enable Claude streaming. Instead of waiting for the full response before calling ElevenLabs, split the response into sentences as they arrive and send each sentence to ElevenLabs as soon as it ends with ., ?, or !. Queue the resulting audio chunks and play them sequentially. This means audio begins playing after the first sentence arrives rather than after the full response is complete.
+Implementation approach:
+javascript// In /api/chat — stream Claude, collect sentences, speak each
+const stream = await anthropic.messages.stream({ ... });
+let buffer = '';
+let audioQueue = [];
+let isPlaying = false;
+
+stream.on('text', async (text) => {
+  buffer += text;
+  const sentences = buffer.split(/(?<=[.?!])\s+/);
+  if (sentences.length > 1) {
+    const toSpeak = sentences.slice(0, -1).join(' ');
+    buffer = sentences[sentences.length - 1];
+    // Send toSpeak to ElevenLabs, queue audio
+    audioQueue.push(await generateAudio(toSpeak));
+    if (!isPlaying) playNext();
+  }
+});
+stream.on('end', async () => {
+  if (buffer.trim()) {
+    audioQueue.push(await generateAudio(buffer));
+    if (!isPlaying) playNext();
+  }
+});
+C. Use Whisper with reduced latency:
+In /api/transcribe, add response_format: 'text' to the Whisper call to skip JSON parsing overhead and return plain text directly.
+D. Show immediate visual feedback:
+The moment the user stops recording (before transcription completes), immediately transition the orb to the PROCESSING state with the text "Tayo is thinking..." so the user knows their input was received. This reduces perceived lag even if actual processing time is unchanged.
+
+4. REMOVE ALL MARKDOWN FORMATTING FROM AI RESPONSES
+Add the following instruction to every Claude system prompt across all four steps — append it to the end of each existing system prompt:
+"CRITICAL FORMATTING RULE: Never use any Markdown formatting in your responses. This means: no asterisks for bold or italics, no hashtags for headings, no bullet point symbols, no numbered lists with dots, no backticks, no underscores for emphasis. Write entirely in plain prose. Sentences and paragraphs only. This applies to every single message you generate in this conversation without exception."
+
+5. REMOVE HASHTAGS FROM STRATEGIC PLAN RENDERED OUTPUT
+In the strategic plan rendering component, add a post-processing step that strips all Markdown artifacts from the plan text before displaying it:
+javascriptconst cleanPlanText = (text) => {
+  return text
+    .replace(/^#{1,6}\s+/gm, '')        // remove hashtag headings
+    .replace(/\*\*(.*?)\*\*/g, '$1')     // remove bold asterisks, keep text
+    .replace(/\*(.*?)\*/g, '$1')         // remove italic asterisks, keep text
+    .replace(/`(.*?)`/g, '$1')           // remove backticks
+    .replace(/^[-*+]\s+/gm, '')          // remove bullet symbols
+    .replace(/^\d+\.\s+/gm, '')          // remove numbered list prefixes
+    .trim();
+};
+Apply cleanPlanText() to the plan text before rendering AND before passing to ElevenLabs TTS (so the voice does not read out "hashtag" or "asterisk").
+Also apply this same cleaning function to all ElevenLabs TTS calls across all steps — clean every text string before passing to /api/speak.
+
+6. STEP 1 — INTAKE QUESTIONS MUST POPULATE ALL OUTPUTS
+Update the Step 1 Claude system prompt to explicitly ensure the conversation gathers everything needed for both the dashboard charts and all six strategic plan sections. Add this to the system prompt:
+"By the end of this conversation, you must have gathered enough information to populate ALL of the following — do not close the conversation until each is covered: (1) JOURNEY TO DATE CHART: a sequence of named life chapters or events, each with a sense of whether it was a high point, low point, transition, or milestone, and the emotional quality of that period. (2) WHO YOU ARE NOW PYRAMID: each of the five dimensions (Mental & Emotional, Career, Physical, Social & Relationships, Financial) plus any other dimensions mentioned, with a sense of how foundational vs. growth-oriented vs. meaning-oriented each is, and a brief description of how each dimension functions in and supports this person's life. (3) WHERE TO JOURNEY NEXT CHART: a relative sense of how important each dimension is to the user and how much they are currently thriving in it — high, medium, or low for each. (4) MY STORY section: their arc, what they have navigated, what has shifted, what this moment represents. (5) CORE STRENGTHS AND DIFFERENTIATORS: specific strengths and what makes them distinctly themselves. (6) STRATEGIC CHALLENGES: the key tensions and design problems they are navigating. (7) PURPOSE STATEMENT: their core why in their own words. (8) CORE VALUES: what they value most, in their own language. (9) FOCUS AREAS: which dimensions most need intentional attention and why. If any of these areas have not been covered naturally in conversation, weave in questions to gather them before closing Phase 6."
+
+7. JOURNEY TO DATE CHART — REVISED SPEC
+Replace the current Journey to Date chart implementation with the following:
+
+X-axis: labeled "Your Journey" — displays life chapter or event names, not years. Order events in the sequence they were mentioned or implied chronologically. Angle labels 35° if they overlap. Do not display any year numbers.
+Y-axis: labeled "Path to Self-Actualization" — no numbers visible on the axis, just the label on the left side, oriented vertically.
+Line: smooth monotone curve (type="monotone" in Recharts), sage green #7A9E87, strokeWidth 3. The overall slope must trend upward from left to right. Low points dip but never below 20% of the chart height. The line should feel like a life being lived — not a straight line upward, but unmistakably moving forward overall.
+Data points: burnt orange filled circles (8px radius) at each event node.
+Tooltip on hover: shows the event label and a one-sentence description of that chapter if available from the profile.
+No grid lines. Cream background. Warm brown axis labels.
+Chart height: 300px, full available width.
+
+
+8. WHO YOU ARE NOW — PUZZLE PYRAMID REVISED SPEC
+Replace the current pyramid implementation with the following:
+Shape and structure:
+
+Overall pyramid triangle shape retained — apex at top, widest at bottom
+Interior divided into horizontal tiers (foundational / growth / meaning) plus Self-Actualization tip
+Each dimension within its tier is rendered as a puzzle piece shape — use SVG paths with interlocking tab/blank connectors on shared edges between adjacent pieces. If clean interlocking SVG puzzle shapes are not achievable, use clean trapezoid segments — do not sacrifice pyramid geometry for decorative connectors.
+
+No numbers anywhere on this chart.
+No shading based on thriving level.
+Colors — each dimension gets a distinct color from this retro palette:
+
+Burnt orange: #C4622D
+Sage green: #7A9E87
+Warm gold: #D4A843
+Terracotta: #A85C3A
+Muted teal: #5B8A7A
+If a 6th dimension exists: dusty rose #C4956A
+
+Assign colors to dimensions consistently (same dimension always same color). Self-Actualization tip: always gold #D4A843.
+Each piece must contain:
+
+Dimension name in bold white, 12px, centered
+A 2–3 word role descriptor below the name in cream, 10px (e.g., "Funds your growth" or "Anchors your identity")
+
+Expand chart:
+
+SVG size: width=380, height=400 minimum
+Make the pyramid occupy the full SVG space generously — no cramped segments
+
+Below the pyramid, add a legend section: for each dimension, show its color swatch, its name, and a one-sentence description of its role in this specific user's life (generated from the profile data by Claude during profile extraction). Format as a clean list, 12px, --brown-light.
+Example legend entry:
+● Financial Security — Provides the stability that makes space for coaching, physical health, and entrepreneurial risk-taking.
+
+9. WHERE TO JOURNEY NEXT — NEW BAR CHART SPEC
+Replace the current quadrant chart entirely with a custom bar chart:
+Chart concept: Each dimension is a vertical bar. Bar height represents how much the user is thriving in that dimension (relative, not numeric). A dashed horizontal line across each bar represents the importance level for that dimension. The gap between the bar top and the dashed line reveals the delta — where the user is under-investing (importance much higher than thriving) or over-investing (thriving exceeds importance).
+Sorting: Bars sorted left to right from least important to most important dimension.
+No numbers displayed anywhere on this chart.
+Y-axis: Label only — "Thriving" at top, nothing else. No tick marks, no numbers.
+X-axis: Dimension names below each bar.
+Bar colors:
+
+Large gap (importance significantly higher than thriving — under-investing): terracotta #A85C3A with a semi-transparent terracotta fill rgba(168,92,58,0.15) behind the full bar height to show the "missing" zone
+Small gap or aligned (thriving ≈ importance): sage green #7A9E87
+Thriving exceeds importance (over-investing): muted gold #D4A843
+
+Importance line: Dashed, #6B5B4E (warm grey-brown), 1.5px, spans the full width of the bar
+Implementation:
+Use a custom SVG or Recharts ComposedChart with Bar + ReferenceLine per dimension. The bar height maps the thriving level (high=80%, medium=50%, low=25% of chart height). The importance dashed line position maps the importance level (high=80%, medium=50%, low=25%).
+Below chart: A one-line legend:
+● Terracotta = invest more here   ● Sage = well balanced   ● Gold = consider rebalancing
+Chart height: 280px. Full width.
+
+DEFINITION OF DONE FOR THIS PROMPT
+All of the following must be true before considering this complete:
+
+Every step shows a grey italic description below the title
+Tayo's voice opens each of Steps 1 and 3 with a warm orientation before asking any questions
+Response time is noticeably faster — audio begins playing sooner after the user finishes speaking, using turbo TTS and sentence-by-sentence streaming
+No asterisks, hashtags, or Markdown symbols appear anywhere in the UI — in chat bubbles, transcripts, plan text, or voice output
+Strategic plan renders with clean section headers (no #), bold text rendered as bold (not **), plain prose throughout
+Step 1 conversation reliably gathers all data needed for all three charts and all six plan sections
+Journey to Date chart shows chapter-name X-axis (no years), upward-trending smooth curve, labeled Y-axis
+Who You Are Now pyramid shows distinct colors per dimension, puzzle piece or clean trapezoid segments, dimension name + role descriptor per piece, expanded size, legend below with per-user descriptions
+Where to Journey Next shows the new bar chart: bars sorted by importance, dashed importance line per bar, terracotta/sage/gold coloring by gap size, no numbers
+No regressions on any existing functionality

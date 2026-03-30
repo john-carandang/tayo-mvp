@@ -34,9 +34,11 @@ router.post("/transcribe", upload.single("audio"), async (req: Request, res: Res
     const transcription = await openai.audio.transcriptions.create({
       file: new File([arrayBuf], "audio.webm", { type: req.file.mimetype || "audio/webm" }),
       model: "whisper-1",
+      response_format: "text",
     });
 
-    res.json({ text: transcription.text });
+    // When response_format is 'text', the SDK returns a plain string
+    res.json({ text: transcription as unknown as string });
   } catch (err) {
     req.log.error({ err }, "Transcribe error");
     res.status(500).json({ error: "Failed to transcribe audio" });
@@ -71,7 +73,7 @@ router.post("/speak", async (req: Request, res: Response) => {
         },
         body: JSON.stringify({
           text,
-          model_id: "eleven_monolingual_v1",
+          model_id: "eleven_turbo_v2",
           voice_settings: {
             stability: 0.5,
             similarity_boost: 0.75,
@@ -148,7 +150,9 @@ Return ONLY a valid JSON object matching this exact schema (no markdown, no expl
       "thriving": number (1-10),
       "tier": "foundational" | "growth" | "meaning",
       "themes": ["string"],
-      "notableQuote": "string (direct quote from user if available)"
+      "notableQuote": "string (direct quote from user if available)",
+      "roleDescriptor": "string (2-4 word phrase describing this dimension's role in this person's life, e.g. 'Funds your freedom', 'Anchors your identity', 'Powers your creativity')",
+      "legendDescription": "string (one sentence describing the specific role this dimension plays in THIS person's life, grounded in what they shared)"
     }
   ],
   "lifeEvents": [
