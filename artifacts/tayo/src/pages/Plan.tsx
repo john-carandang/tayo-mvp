@@ -220,6 +220,25 @@ export default function Plan() {
 
   const year = new Date().getFullYear();
 
+  // Recovery path: profile exists but plan hasn't been generated yet
+  if (!plan) {
+    return (
+      <StepLayout step={4} title="Your Strategic Plan">
+        <div className="max-w-lg mx-auto flex flex-col items-center justify-center py-24 gap-6 text-center">
+          <p className="text-muted-foreground text-base">
+            Your strategic plan hasn't been generated yet.
+          </p>
+          <button
+            onClick={() => setLocation("/chat")}
+            className="btn-primary px-8 py-3 rounded-full font-semibold text-sm"
+          >
+            Go to Coaching Session
+          </button>
+        </div>
+      </StepLayout>
+    );
+  }
+
   return (
     <StepLayout step={4} title="Your Strategic Plan">
       <div className="max-w-2xl mx-auto space-y-6 pb-16">

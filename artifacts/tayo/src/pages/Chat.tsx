@@ -70,22 +70,12 @@ export default function Chat() {
 
   const buildSystemPrompt = useCallback(() => {
     if (!profile) return "";
-    const dimText = profile.dimensions
-      .map(d => `- ${d.name}: Thriving ${d.thriving}/10, Importance ${d.importance}/10, Tier: ${d.tier}. Themes: ${d.themes?.join(", ") || "none"}`)
-      .join("\n");
-    const values = profile.values?.join(", ") || "not specified";
-    const purposeThemes = profile.purposeThemes?.join(", ") || "not specified";
-
     return `You are Tayo, a warm and incisive life coach. The user's name is ${profile.firstName}.
 
-Their life profile:
-${dimText}
+Full life profile (JSON):
+${JSON.stringify(profile, null, 2)}
 
-Core Values: ${values}
-Purpose Themes: ${purposeThemes}
-Overall Narrative: ${profile.overallNarrative}
-
-Your role: Help ${profile.firstName} go deeper on their insights, clarify what they want, and prepare them for their strategic plan. Be direct, specific, and reference their actual profile. Keep responses concise — 2-4 sentences. End each response with a focused question.`;
+Your role: Help ${profile.firstName} go deeper on their insights, clarify what they want, and prepare them for their strategic plan. Be direct, specific, and reference their actual dimensions, values, life events, and themes from the profile above. Keep responses concise — 2-4 sentences. End each response with a focused question.`;
   }, [profile]);
 
   const stopAudio = () => {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import {
-  LineChart, Line, XAxis, Tooltip, ResponsiveContainer, Dot
+  LineChart, Line, XAxis, Tooltip, ResponsiveContainer, Dot, LabelList
 } from "recharts";
 import { StepLayout } from "@/components/layout/StepLayout";
 import { VoiceOrb, type OrbState } from "@/components/ui/VoiceOrb";
@@ -356,8 +356,8 @@ export default function Dashboard() {
                 <p className="text-center text-muted-foreground py-8 text-sm">No life events to display.</p>
               ) : (
                 <>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={sortedEvents} margin={{ top: 16, right: 24, left: 4, bottom: 16 }}>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <LineChart data={sortedEvents} margin={{ top: 16, right: 28, left: 4, bottom: 60 }}>
                       <XAxis
                         dataKey="approximateYear"
                         tick={{ fontSize: 11, fill: "#746A5A" }}
@@ -385,21 +385,24 @@ export default function Dashboard() {
                           );
                         }}
                         activeDot={{ r: 7, fill: "#C4622D" }}
-                      />
+                      >
+                        <LabelList
+                          dataKey="label"
+                          position="bottom"
+                          offset={10}
+                          style={{
+                            fontSize: "10px",
+                            fill: "#746A5A",
+                            fontFamily: "DM Sans, sans-serif",
+                          }}
+                          angle={-35}
+                        />
+                      </Line>
                     </LineChart>
                   </ResponsiveContainer>
-                  <p className="text-center text-xs text-muted-foreground mt-1 mb-3 italic">
+                  <p className="text-center text-xs text-muted-foreground mt-1 italic">
                     Toward your full potential
                   </p>
-
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {sortedEvents.map((evt, i) => (
-                      <div key={i} className="text-center px-2 py-1.5 rounded-lg bg-background/60 text-xs">
-                        <p className="font-semibold text-foreground">{evt.chapterName}</p>
-                        <p className="text-muted-foreground">{evt.approximateYear}</p>
-                      </div>
-                    ))}
-                  </div>
                 </>
               )}
             </div>
