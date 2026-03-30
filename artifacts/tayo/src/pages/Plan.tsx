@@ -19,93 +19,124 @@ async function speakText(text: string): Promise<HTMLAudioElement> {
   return new Audio(URL.createObjectURL(blob));
 }
 
-function formatPlan(raw: string, firstName: string): ReactNode {
-  const year = new Date().getFullYear();
+// Safe inline bold renderer — splits on *text* markers without dangerouslySetInnerHTML
+function InlineText({ text }: { text: string }) {
+  const parts = text.split(/\*([^*]+)\*/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>
+      )}
+    </>
+  );
+}
 
-  const sections = raw
-    .split(/\n(?=[A-Z][^\n]{3,60}\n)/)
-    .filter(Boolean);
+// Strip common LLM prefixes like "(a) ", "(b) ", "1. ", "A. " at line/section start
+function stripPrefixes(text: string): string {
+  return text
+    .replace(/^\s*\([a-zA-Z]\)\s+/gm, "")
+    .replace(/^\s*[a-zA-Z0-9]+[.)]\s+/gm, (m) => {
+      // Only strip if prefix is short (letter or short number)
+      const stripped = m.trimStart().match(/^([a-zA-Z]|[0-9]{1,2})[.)]/);
+      return stripped ? "" : m;
+    })
+    .trim();
+}
 
-  if (sections.length <= 1) {
-    const paragraphs = raw.split("\n\n").filter(Boolean);
-    return (
-      <>
-        {paragraphs.map((para, i) => {
-          if (para.trim().length < 80 && !para.includes("\n")) {
+function PlanSection({ heading, body }: { heading: string; body: string }) {
+  const paragraphs = body.split(/\n\n+/).filter(Boolean);
+
+  return (
+    <div className="mb-8">
+      <h3 className="text-base font-semibold font-display text-foreground mb-3 pb-1.5 border-b border-border/60">
+        {heading}
+      </h3>
+      <div className="space-y-3">
+        {paragraphs.map((para, j) => {
+          const lines = para.split("\n").filter(l => l.trim());
+          const isBulletBlock = lines.every(l => /^[-•*]/.test(l.trim()));
+
+          if (isBulletBlock) {
             return (
-              <h3 key={i} className="text-lg font-display font-semibold text-foreground mt-6 mb-2 pb-1 border-b border-border">
-                {para.trim()}
-              </h3>
-            );
-          }
-          const lines = para.split("\n");
-          if (lines.every(l => l.trim().match(/^[-•*]/) || l.trim() === "")) {
-            return (
-              <ul key={i} className="space-y-2 my-3 pl-2">
-                {lines.filter(l => l.trim()).map((line, j) => (
-                  <li key={j} className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
-                    <span className="text-primary mt-0.5 flex-shrink-0">·</span>
-                    <span dangerouslySetInnerHTML={{
-                      __html: line.replace(/^[-•*]\s*/, "").replace(/\*([^*]+)\*/g, "<strong>$1</strong>")
-                    }} />
+              <ul key={j} className="space-y-2">
+                {lines.map((line, k) => (
+                  <li key={k} className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
+                    <span className="text-primary mt-0.5 flex-shrink-0 font-bold">·</span>
+                    <InlineText text={line.replace(/^[-•*]\s*/, "")} />
                   </li>
                 ))}
               </ul>
             );
           }
+
           return (
-            <p key={i} className="text-sm text-muted-foreground leading-relaxed my-3"
-              dangerouslySetInnerHTML={{
-                __html: para.replace(/\*([^*]+)\*/g, "<strong>$1</strong>")
-              }}
-            />
+            <p key={j} className="text-sm text-muted-foreground leading-relaxed">
+              <InlineText text={para} />
+            </p>
           );
         })}
-      </>
-    );
+      </div>
+    </div>
+  );
+}
+
+function renderPlan(raw: string): ReactNode {
+  // Strip all (a), (b), etc. section letter prefixes
+  const cleaned = stripPrefixes(raw);
+
+  // Try to split by lines that look like section headers:
+  // A header line is short (<= 60 chars), followed by a newline and then content
+  const sectionRegex = /^(?![-•*\s])([^\n]{3,60})\n([\s\S]+?)(?=\n(?![-•*\s])[^\n]{3,60}\n|$)/gm;
+
+  const sections: Array<{ heading: string; body: string }> = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = sectionRegex.exec(cleaned)) !== null) {
+    const heading = match[1].trim();
+    const body = match[2].trim();
+    if (heading && body) {
+      sections.push({ heading, body });
+    }
   }
 
-  return (
-    <>
-      {sections.map((section, i) => {
-        const lines = section.trim().split("\n");
-        const heading = lines[0].trim();
-        const body = lines.slice(1).join("\n").trim();
+  if (sections.length >= 2) {
+    return sections.map((s, i) => <PlanSection key={i} heading={s.heading} body={s.body} />);
+  }
 
-        return (
-          <div key={i} className="mb-8">
-            <h3 className="text-base font-display font-semibold text-foreground mb-3 pb-1.5 border-b border-border/60">
-              {heading}
-            </h3>
-            {body.split("\n\n").filter(Boolean).map((para, j) => {
-              const paraLines = para.split("\n");
-              if (paraLines.every(l => l.trim().match(/^[-•*]/) || l.trim() === "")) {
-                return (
-                  <ul key={j} className="space-y-1.5 mb-3 pl-2">
-                    {paraLines.filter(l => l.trim()).map((line, k) => (
-                      <li key={k} className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
-                        <span className="text-primary mt-0.5 flex-shrink-0">·</span>
-                        <span dangerouslySetInnerHTML={{
-                          __html: line.replace(/^[-•*]\s*/, "").replace(/\*([^*]+)\*/g, "<strong>$1</strong>")
-                        }} />
-                      </li>
-                    ))}
-                  </ul>
-                );
-              }
-              return (
-                <p key={j} className="text-sm text-muted-foreground leading-relaxed mb-3"
-                  dangerouslySetInnerHTML={{
-                    __html: para.replace(/\*([^*]+)\*/g, "<strong>$1</strong>")
-                  }}
-                />
-              );
-            })}
-          </div>
-        );
-      })}
-    </>
-  );
+  // Fallback: render as paragraphs
+  const paragraphs = cleaned.split(/\n\n+/).filter(Boolean);
+  return paragraphs.map((para, i) => {
+    const lines = para.split("\n").filter(l => l.trim());
+    const isShortLine = lines.length === 1 && para.trim().length < 60;
+
+    if (isShortLine) {
+      return (
+        <h3 key={i} className="text-base font-semibold font-display text-foreground mt-6 mb-2 pb-1 border-b border-border/60">
+          {para.trim()}
+        </h3>
+      );
+    }
+
+    const isBulletBlock = lines.every(l => /^[-•*]/.test(l.trim()));
+    if (isBulletBlock) {
+      return (
+        <ul key={i} className="space-y-2 mb-3">
+          {lines.map((line, k) => (
+            <li key={k} className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
+              <span className="text-primary mt-0.5 flex-shrink-0 font-bold">·</span>
+              <InlineText text={line.replace(/^[-•*]\s*/, "")} />
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    return (
+      <p key={i} className="text-sm text-muted-foreground leading-relaxed mb-3">
+        <InlineText text={para} />
+      </p>
+    );
+  });
 }
 
 export default function Plan() {
@@ -114,16 +145,41 @@ export default function Plan() {
   const [plan, setPlan] = useState<string | null>(null);
   const [orbState, setOrbState] = useState<OrbState>("idle");
   const [isNarrating, setIsNarrating] = useState(false);
+  const [narrationStarted, setNarrationStarted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("tayo_plan");
-    setPlan(stored);
+    if (stored) setPlan(stored);
   }, []);
 
   useEffect(() => {
     if (isHydrated && !profile) setLocation("/");
   }, [isHydrated, profile, setLocation]);
+
+  // Auto-start narration on load once plan is ready
+  useEffect(() => {
+    if (!plan || narrationStarted) return;
+    setNarrationStarted(true);
+
+    const preview = plan.slice(0, 500);
+    const narrationText = `Here is ${profile?.firstName ?? "your"} personal strategic plan. ${preview}`;
+
+    setOrbState("speaking");
+    setIsNarrating(true);
+
+    speakText(narrationText)
+      .then((audio) => {
+        audioRef.current = audio;
+        audio.play();
+        audio.onended = () => { setIsNarrating(false); setOrbState("idle"); };
+        audio.onerror = () => { setIsNarrating(false); setOrbState("idle"); };
+      })
+      .catch(() => {
+        setIsNarrating(false);
+        setOrbState("idle");
+      });
+  }, [plan, narrationStarted, profile]);
 
   const handleToggleNarration = useCallback(async () => {
     if (!plan) return;
@@ -137,10 +193,8 @@ export default function Plan() {
     setOrbState("speaking");
     setIsNarrating(true);
     try {
-      const planSummary = plan.slice(0, 800);
-      const audio = await speakText(
-        `Here is ${profile?.firstName}'s strategic life plan. ${planSummary}`
-      );
+      const preview = plan.slice(0, 500);
+      const audio = await speakText(`Here is ${profile?.firstName ?? "your"} personal strategic plan. ${preview}`);
       audioRef.current = audio;
       audio.play();
       audio.onended = () => { setIsNarrating(false); setOrbState("idle"); };
@@ -159,35 +213,22 @@ export default function Plan() {
   if (!isHydrated || !profile) return null;
 
   const year = new Date().getFullYear();
-  const planTitle = `${profile.firstName}'s ${year} Life Strategic Plan`;
 
   return (
     <StepLayout step={4} title="Your Strategic Plan">
       <div className="max-w-2xl mx-auto space-y-6 pb-16">
 
-        {/* Plan Document */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card-warm overflow-hidden"
-        >
-          {/* Document Header */}
-          <div className="px-6 pt-6 pb-4 border-b border-border flex items-start justify-between">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="card-warm overflow-hidden">
+          {/* Document header */}
+          <div className="px-6 pt-6 pb-4 border-b border-border flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-1">
-                Personal Strategic Plan
-              </p>
-              <h2 className="text-xl font-display text-foreground">
-                {planTitle}
+              <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-1">Personal Strategic Plan</p>
+              <h2 className="text-lg font-display text-foreground">
+                {profile.firstName}&apos;s {year} Life Strategic Plan
               </h2>
             </div>
-            <div className="flex items-center gap-2 shrink-0 ml-4">
-              <VoiceOrb
-                state={orbState}
-                size={36}
-                onClick={plan ? handleToggleNarration : undefined}
-                disabled={!plan}
-              />
+            <div className="flex items-center gap-2 shrink-0">
+              <VoiceOrb state={orbState} size={36} onClick={plan ? handleToggleNarration : undefined} disabled={!plan} />
               <button
                 onClick={handleToggleNarration}
                 disabled={!plan}
@@ -199,28 +240,23 @@ export default function Plan() {
             </div>
           </div>
 
-          {/* Plan Body */}
+          {/* Plan body */}
           <div className="px-6 py-5">
             {!plan ? (
               <div className="space-y-2 animate-pulse py-8">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-4 rounded bg-foreground/8" style={{ width: `${75 + Math.random() * 25}%` }} />
+                {[95, 80, 88, 72, 91].map((w, i) => (
+                  <div key={i} className="h-4 rounded bg-foreground/8" style={{ width: `${w}%` }} />
                 ))}
               </div>
             ) : (
-              formatPlan(plan, profile.firstName)
+              renderPlan(plan)
             )}
           </div>
         </motion.div>
 
-        {/* Values reminder */}
-        {profile.values?.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="card-warm p-4"
-          >
+        {/* Values */}
+        {(profile.values ?? []).length > 0 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="card-warm p-4">
             <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-3">Core Values</p>
             <div className="flex flex-wrap gap-2">
               {profile.values.map((v, i) => (
@@ -232,7 +268,7 @@ export default function Plan() {
           </motion.div>
         )}
 
-        {/* Start Over */}
+        {/* Start over */}
         <div className="flex justify-center pt-4">
           <button
             onClick={handleStartOver}

@@ -2,7 +2,6 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import multer from "multer";
 import OpenAI from "openai";
-import { Readable } from "stream";
 
 const router: IRouter = Router();
 
@@ -26,9 +25,6 @@ router.post("/transcribe", upload.single("audio"), async (req: Request, res: Res
       res.status(400).json({ error: "No audio file provided" });
       return;
     }
-
-    const readable = Readable.from(req.file.buffer);
-    (readable as any).name = "audio.webm";
 
     const transcription = await openai.audio.transcriptions.create({
       file: new File([req.file.buffer], "audio.webm", { type: req.file.mimetype || "audio/webm" }),
@@ -192,14 +188,15 @@ Guidelines:
 // POST /api/narrative — profile → narrative paragraph (for dashboard)
 router.post("/narrative", async (req: Request, res: Response) => {
   try {
-    const { profile } = req.body as { profile: Record<string, unknown> };
+    const { profile } = req.body as { profile: Record<string, unknown> & { firstName?: string } };
+    const firstName = typeof profile.firstName === "string" ? profile.firstName : "you";
 
     const prompt = `You are Tayo, a warm and analytically precise life coach. Based on this structured profile, write a narrative paragraph of 5-8 sentences for the dashboard.
 
 Profile: ${JSON.stringify(profile, null, 2)}
 
 The narrative must:
-- Be in second person addressing ${(profile as any).firstName}
+- Be in second person addressing ${firstName}
 - Reference specific dimensions, life events, and values from the profile
 - Acknowledge the user's current position with honesty and warmth
 - Close with a forward-looking framing of what the coaching journey is about to unlock
