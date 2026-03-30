@@ -152,10 +152,10 @@ export default function Intake() {
         if (playbackCancelRef.current) break;
         audioRef.current = audio;
         await new Promise<void>(resolve => {
-          audio.onended = resolve;
-          audio.onerror = resolve;
+          audio.onended = () => resolve();
+          audio.onerror = () => resolve();
           const p = audio.play();
-          if (p !== undefined) p.catch(resolve);
+          if (p !== undefined) p.catch(() => resolve());
           // Safety timeout
           setTimeout(resolve, 30000);
         });

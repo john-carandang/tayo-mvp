@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import {
-  LineChart, Line, XAxis, Tooltip, ResponsiveContainer, Dot, LabelList
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Dot, LabelList,
+  ComposedChart, Bar, ReferenceLine, Cell,
 } from "recharts";
 import { StepLayout } from "@/components/layout/StepLayout";
 import { VoiceOrb, type OrbState } from "@/components/ui/VoiceOrb";
@@ -25,37 +26,46 @@ async function speakText(text: string): Promise<HTMLAudioElement> {
   return new Audio(URL.createObjectURL(blob));
 }
 
-// Pyramid segment fill: warm brown palette per spec
-function thrivingColor(thriving: number): string {
-  if (thriving >= 7) return "#C4622D";    // high — burnt sienna
-  if (thriving >= 4) return "#A85C3A";    // medium — warm umber
-  return "#6B3520";                        // low — deep mahogany
+// Fixed distinct palette — one colour per dimension slot (not thriving-based)
+const DIM_PALETTE = [
+  "#C4622D", // terracotta
+  "#7A9E87", // sage
+  "#D4A843", // gold
+  "#8B5A2B", // warm umber
+  "#5B7FA6", // slate blue
+  "#A3623E", // sienna
+  "#6B8E6B", // forest green
+  "#C08050", // caramel
+];
+
+function dimColor(index: number): string {
+  return DIM_PALETTE[index % DIM_PALETTE.length];
 }
 
-// ─── 3-Tier SVG Pyramid with per-dimension subdivision ───────────────────────
+// ─── SVG Wellness Pyramid ─────────────────────────────────────────────────────
 function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
-  const W = 340;
-  const H = 320;
+  const W = 380;
+  const H = 400;
   const cx = W / 2;
-  const apexY = 10;
-  const baseY = H - 4;
+  const apexY = 12;
+  const baseY = H - 60; // leave room for legend
 
-  // Split dimensions by tier
   const meaningDims = dimensions.filter(d => d.tier === "meaning");
   const growthDims = dimensions.filter(d => d.tier === "growth");
   const foundDims = dimensions.filter(d => d.tier === "foundational");
 
-  // 3 equal tier y-boundaries
   const totalH = baseY - apexY;
   const tierH = totalH / 3;
   const tierY = [apexY, apexY + tierH, apexY + 2 * tierH, baseY];
 
-  // Half-width at a given y on the pyramid
   function halfW(y: number): number {
-    return ((y - apexY) / (baseY - apexY)) * (W / 2 - 6);
+    return ((y - apexY) / (baseY - apexY)) * (W / 2 - 8);
   }
 
-  // Subdivide one tier into equal trapezoid segments (one per dimension)
+  // Assign a stable per-dimension colour by global position
+  const dimColorMap = new Map<string, string>();
+  dimensions.forEach((d, i) => dimColorMap.set(d.name, dimColor(i)));
+
   function makeTierSegments(dims: TayoDimension[], y1: number, y2: number) {
     if (dims.length === 0) {
       const hw1 = halfW(y1);
@@ -63,7 +73,7 @@ function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
       const pts = y1 <= apexY + 1
         ? `${cx},${apexY} ${cx + hw2},${y2} ${cx - hw2},${y2}`
         : `${cx - hw1},${y1} ${cx + hw1},${y1} ${cx + hw2},${y2} ${cx - hw2},${y2}`;
-      return [{ dim: null as TayoDimension | null, pts, midY: (y1 + y2) / 2, sy2: y2, hw2 }];
+      return [{ dim: null as TayoDimension | null, pts, midY: (y1 + y2) / 2, hw2 }];
     }
     const segH = (y2 - y1) / dims.length;
     return dims.map((dim, i) => {
@@ -75,7 +85,7 @@ function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
       const pts = sy1 <= apexY + 1
         ? `${cx},${apexY} ${cx + hw2},${sy2} ${cx - hw2},${sy2}`
         : `${cx - hw1},${sy1} ${cx + hw1},${sy1} ${cx + hw2},${sy2} ${cx - hw2},${sy2}`;
-      return { dim: dim as TayoDimension | null, pts, midY, sy2, hw2 };
+      return { dim: dim as TayoDimension | null, pts, midY, hw2 };
     });
   }
 
@@ -85,46 +95,48 @@ function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
     ...makeTierSegments(foundDims, tierY[2], tierY[3]),
   ];
 
-  // Tier divider line y-values and right-edge label positions
   const tierMids = [(tierY[0] + tierY[1]) / 2, (tierY[1] + tierY[2]) / 2, (tierY[2] + tierY[3]) / 2];
   const TIER_LABELS = ["MEANING", "GROWTH", "FOUNDATIONAL"];
 
-  return (
-    <div className="w-full max-w-xs mx-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth: 320 }}>
-        {/* Dimension segment polygons + labels */}
-        {allSegs.map(({ dim, pts, midY }, idx) => (
-          <g key={idx}>
-            <polygon
-              points={pts}
-              fill={dim ? thrivingColor(dim.thriving) : "#8B6940"}
-              stroke="#2C1810"
-              strokeWidth="1"
-            />
-            {dim && (
-              <>
-                <text x={cx} y={midY - 3} textAnchor="middle" fontSize="11" fontWeight="700" fill="#F5F0E8" fontFamily="DM Sans, sans-serif">
-                  {dim.name.length > 22 ? dim.name.slice(0, 20) + "…" : dim.name}
-                </text>
-                <text x={cx} y={midY + 10} textAnchor="middle" fontSize="9" fill="rgba(245,240,232,0.72)" fontFamily="DM Sans, sans-serif">
-                  {dim.thriving}/10
-                </text>
-              </>
-            )}
-            {!dim && (
-              <text x={cx} y={midY + 4} textAnchor="middle" fontSize="10" fill="rgba(245,240,232,0.4)" fontFamily="DM Sans, sans-serif" fontStyle="italic">—</text>
-            )}
-          </g>
-        ))}
+  // Dims that have a legendDescription to show in the legend below
+  const legendDims = dimensions.filter(d => d.roleDescriptor || d.legendDescription);
 
-        {/* Tier boundary divider lines */}
+  return (
+    <div className="w-full max-w-sm mx-auto">
+      <svg viewBox={`0 0 ${W} ${baseY + 10}`} width="100%" style={{ maxWidth: 380 }}>
+        {/* Dimension polygons + name + roleDescriptor */}
+        {allSegs.map(({ dim, pts, midY }, idx) => {
+          const fill = dim ? (dimColorMap.get(dim.name) ?? "#8B6940") : "#8B6940";
+          return (
+            <g key={idx}>
+              <polygon points={pts} fill={fill} stroke="#2C1810" strokeWidth="1" />
+              {dim && (
+                <>
+                  <text x={cx} y={midY - 5} textAnchor="middle" fontSize="11" fontWeight="700" fill="#F5F0E8" fontFamily="DM Sans, sans-serif">
+                    {dim.name.length > 20 ? dim.name.slice(0, 18) + "…" : dim.name}
+                  </text>
+                  {dim.roleDescriptor && (
+                    <text x={cx} y={midY + 9} textAnchor="middle" fontSize="9" fill="rgba(245,240,232,0.78)" fontFamily="DM Sans, sans-serif" fontStyle="italic">
+                      {dim.roleDescriptor}
+                    </text>
+                  )}
+                </>
+              )}
+              {!dim && (
+                <text x={cx} y={midY + 4} textAnchor="middle" fontSize="10" fill="rgba(245,240,232,0.4)" fontFamily="DM Sans, sans-serif" fontStyle="italic">—</text>
+              )}
+            </g>
+          );
+        })}
+
+        {/* Tier divider lines */}
         {[tierY[1], tierY[2]].map((y, i) => (
           <line key={i} x1={cx - halfW(y)} y1={y} x2={cx + halfW(y)} y2={y} stroke="#2C1810" strokeWidth="1.5" />
         ))}
 
-        {/* Tier labels on right edge */}
+        {/* Tier labels (right edge) */}
         {tierMids.map((midY, i) => (
-          <text key={i} x={cx + halfW(midY) + 5} y={midY + 4} fontSize="8" fill="rgba(44,24,16,0.5)" fontFamily="DM Sans, sans-serif" letterSpacing="0.5" fontWeight="600">
+          <text key={i} x={cx + halfW(midY) + 5} y={midY + 4} fontSize="8" fill="rgba(44,24,16,0.45)" fontFamily="DM Sans, sans-serif" letterSpacing="0.5" fontWeight="600">
             {TIER_LABELS[i]}
           </text>
         ))}
@@ -137,7 +149,7 @@ function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
           strokeWidth="1.5"
         />
 
-        {/* Warm brown outer outline */}
+        {/* Outer border */}
         <polygon
           points={`${cx},${apexY} ${cx - halfW(baseY)},${baseY} ${cx + halfW(baseY)},${baseY}`}
           fill="none"
@@ -146,94 +158,139 @@ function WellnessPyramid({ dimensions }: { dimensions: TayoDimension[] }) {
         />
       </svg>
 
+      {/* Per-dimension legend with legendDescription */}
+      {legendDims.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {legendDims.map((d) => (
+            <div key={d.name} className="flex gap-2 items-start">
+              <div className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: dimColorMap.get(d.name) ?? "#8B6940" }} />
+              <div>
+                <span className="text-xs font-semibold text-foreground">{d.name}</span>
+                {d.roleDescriptor && (
+                  <span className="text-xs text-primary ml-1.5 italic">{d.roleDescriptor}</span>
+                )}
+                {d.legendDescription && (
+                  <p className="text-xs text-muted-foreground leading-snug mt-0.5">{d.legendDescription}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Thrive Gap Bar Chart ─────────────────────────────────────────────────────
+function ThriveGapChart({ dimensions }: { dimensions: TayoDimension[] }) {
+  // Sort by importance ascending (left = least important)
+  const sorted = [...dimensions].sort((a, b) => a.importance - b.importance);
+
+  function barColor(d: TayoDimension): string {
+    const gap = d.importance - d.thriving;
+    if (gap >= 3) return "#C4622D";   // large gap — terracotta (invest now)
+    if (gap <= -2) return "#D4A843";  // thriving exceeds importance — gold (leverage)
+    return "#7A9E87";                 // balanced — sage
+  }
+
+  const chartData = sorted.map(d => ({
+    name: d.name.length > 14 ? d.name.slice(0, 13) + "…" : d.name,
+    fullName: d.name,
+    thriving: d.thriving,
+    importance: d.importance,
+    color: barColor(d),
+  }));
+
+  return (
+    <div className="w-full max-w-lg mx-auto">
+      <ResponsiveContainer width="100%" height={260}>
+        <ComposedChart data={chartData} margin={{ top: 12, right: 16, left: 0, bottom: 60 }}>
+          <XAxis
+            dataKey="name"
+            tick={{ fontSize: 10, fill: "#746A5A", fontFamily: "DM Sans, sans-serif" }}
+            axisLine={false}
+            tickLine={false}
+            angle={-30}
+            textAnchor="end"
+            interval={0}
+          />
+          <YAxis
+            domain={[0, 10]}
+            tick={{ fontSize: 10, fill: "#746A5A" }}
+            axisLine={false}
+            tickLine={false}
+            width={24}
+            label={{ value: "Score / 10", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 9, fill: "#9B8E84" } }}
+          />
+          <Tooltip
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const d = payload[0].payload;
+              const gap = d.importance - d.thriving;
+              return (
+                <div className="card-warm px-3 py-2.5 text-xs shadow-lg min-w-36">
+                  <p className="font-semibold text-foreground mb-1">{d.fullName}</p>
+                  <p style={{ color: "#7A9E87" }}>Thriving: <span className="font-semibold">{d.thriving}/10</span></p>
+                  <p style={{ color: "#C4622D" }}>Importance: <span className="font-semibold">{d.importance}/10</span></p>
+                  {gap > 0 && <p className="text-muted-foreground mt-1">Gap: {gap} points — invest here</p>}
+                  {gap < 0 && <p className="text-muted-foreground mt-1">Thriving: leverage this strength</p>}
+                </div>
+              );
+            }}
+          />
+          {/* Thriving bars */}
+          <Bar dataKey="thriving" radius={[4, 4, 0, 0]} maxBarSize={40}>
+            {chartData.map((d, i) => (
+              <Cell key={i} fill={d.color} />
+            ))}
+          </Bar>
+          {/* Dashed importance line across each bar */}
+          {chartData.map((d, i) => (
+            <ReferenceLine
+              key={i}
+              x={d.name}
+              y={d.importance}
+              stroke="#C4622D"
+              strokeDasharray="4 3"
+              strokeWidth={1.5}
+            />
+          ))}
+        </ComposedChart>
+      </ResponsiveContainer>
+
       {/* Legend */}
-      <div className="flex flex-wrap justify-center gap-3 mt-3">
+      <div className="flex flex-wrap justify-center gap-4 mt-2">
         {[
-          { label: "Thriving (7+)", color: "#C4622D" },
-          { label: "Growing (4–6)", color: "#A85C3A" },
-          { label: "Focus needed (<4)", color: "#6B3520" },
-        ].map(({ label, color }) => (
+          { color: "#C4622D", label: "Large gap — invest now" },
+          { color: "#7A9E87", label: "Balanced" },
+          { color: "#D4A843", label: "Thriving above target" },
+        ].map(({ color, label }) => (
           <div key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
             <span>{label}</span>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Focus Quadrant ───────────────────────────────────────────────────────────
-function FocusQuadrant({ dimensions }: { dimensions: TayoDimension[] }) {
-  const getQuadrant = (d: TayoDimension) => {
-    const highImp = d.importance >= 6;
-    const highThr = d.thriving >= 6;
-    if (highImp && highThr) return "Leverage";
-    if (highImp && !highThr) return "Invest Now";
-    if (!highImp && highThr) return "Maintain";
-    return "Monitor";
-  };
-
-  const QUAD_COLORS: Record<string, string> = {
-    "Leverage": "#638863",
-    "Invest Now": "#E07020",
-    "Monitor": "#D4A024",
-    "Maintain": "#8B6940",
-  };
-
-  const quadrants = ["Invest Now", "Leverage", "Monitor", "Maintain"] as const;
-
-  return (
-    <div className="w-full max-w-lg mx-auto">
-      <div className="grid grid-cols-2 gap-3">
-        {quadrants.map((q) => {
-          const dims = dimensions.filter(d => getQuadrant(d) === q);
-          return (
-            <motion.div
-              key={q}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="card-warm p-4 min-h-28"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: QUAD_COLORS[q] }} />
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{q}</span>
-              </div>
-              <div className="space-y-1.5">
-                {dims.length === 0 ? (
-                  <p className="text-xs text-muted-foreground/50 italic">None</p>
-                ) : (
-                  dims.map(d => (
-                    <div key={d.name} className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">{d.name}</span>
-                      <span className="text-xs text-muted-foreground">{d.thriving}/10</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-      <div className="mt-3 flex justify-between text-xs text-muted-foreground px-2">
-        <span>← Low Importance</span>
-        <span>High Importance →</span>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <svg width="14" height="4"><line x1="0" y1="2" x2="14" y2="2" stroke="#C4622D" strokeWidth="1.5" strokeDasharray="4 3" /></svg>
+          <span>Importance</span>
+        </div>
       </div>
     </div>
   );
 }
 
 // ─── Journey Tooltip ──────────────────────────────────────────────────────────
-function JourneyTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: { label: string; chapterName: string; approximateYear: number; actualizationLevel: number } }> }) {
+function JourneyTooltip({ active, payload }: {
+  active?: boolean;
+  payload?: Array<{ payload: { label: string; chapterName: string; approximateYear: number; actualizationLevel: number } }>;
+}) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
     <div className="card-warm px-3 py-2 text-xs max-w-48 shadow-lg">
       <p className="font-semibold text-foreground">{d.chapterName}</p>
       <p className="text-muted-foreground">{d.label} · {d.approximateYear}</p>
-      <p className="font-medium mt-1" style={{ color: thrivingColor(Math.round(d.actualizationLevel / 10)) }}>
-        {d.actualizationLevel}% actualized
-      </p>
+      <p className="font-medium mt-1 text-primary">{d.actualizationLevel}% actualized</p>
     </div>
   );
 }
@@ -254,7 +311,6 @@ export default function Dashboard() {
     if (isHydrated && !profile) setLocation("/");
   }, [isHydrated, profile, setLocation]);
 
-  // Fetch narrative text then pre-fetch TTS audio (store Blob URL, do NOT auto-play)
   useEffect(() => {
     if (!profile || narrative) return;
     const fetchNarrative = async () => {
@@ -268,11 +324,9 @@ export default function Dashboard() {
         const data = await res.json();
         const narrativeText = data.narrative as string;
         setNarrative(narrativeText);
-
-        // Pre-fetch TTS so it's instant on first Play click — do NOT auto-play
         speakText(narrativeText)
           .then(audio => { prefetchedAudioRef.current = audio; })
-          .catch(() => { /* prefetch failed — will fetch on demand */ });
+          .catch(() => {});
       } catch {
         setNarrative(profile.overallNarrative ?? null);
       } finally {
@@ -317,7 +371,11 @@ export default function Dashboard() {
   const sortedEvents = [...(profile.lifeEvents ?? [])].sort((a, b) => a.approximateYear - b.approximateYear);
 
   return (
-    <StepLayout step={2} title={`${profile.firstName}'s Dashboard`}>
+    <StepLayout
+      step={2}
+      title={`${profile.firstName}'s Dashboard`}
+      description="Your life mapped — three lenses to see yourself clearly: how far you've come, who you are across every dimension, and where to direct your energy next."
+    >
       <div className="space-y-8">
 
         {/* Tabs */}
@@ -346,85 +404,99 @@ export default function Dashboard() {
           transition={{ duration: 0.3 }}
           className="w-full"
         >
-          {/* Tab 1: Journey to Date — sage line, burnt orange dots */}
+          {/* Tab 1: Journey to Date — chapterName X-axis, labeled Y-axis */}
           {activeTab === "journey" && (
             <div className="card-warm p-6">
-              <h3 className="font-display text-base text-foreground mb-4 text-center">
-                Journey to Date
+              <h3 className="font-display text-base text-foreground mb-1 text-center">
+                Your Journey
               </h3>
+              <p className="text-xs text-center text-muted-foreground mb-4">Path to self-actualisation over time</p>
               {sortedEvents.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8 text-sm">No life events to display.</p>
               ) : (
-                <>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <LineChart data={sortedEvents} margin={{ top: 16, right: 28, left: 4, bottom: 60 }}>
-                      <XAxis
-                        dataKey="approximateYear"
-                        tick={{ fontSize: 11, fill: "#746A5A" }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <Tooltip content={<JourneyTooltip />} />
-                      <Line
-                        type="monotone"
-                        dataKey="actualizationLevel"
-                        stroke="#638863"
-                        strokeWidth={2.5}
-                        dot={(props) => {
-                          const { cx, cy, payload } = props;
-                          return (
-                            <Dot
-                              key={`dot-${payload.approximateYear}`}
-                              cx={cx}
-                              cy={cy}
-                              r={5}
-                              fill="#C4622D"
-                              stroke="#F5F0E8"
-                              strokeWidth={2}
-                            />
-                          );
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={sortedEvents} margin={{ top: 16, right: 28, left: 8, bottom: 70 }}>
+                    <XAxis
+                      dataKey="chapterName"
+                      tick={{ fontSize: 10, fill: "#746A5A", fontFamily: "DM Sans, sans-serif" }}
+                      axisLine={false}
+                      tickLine={false}
+                      angle={-35}
+                      textAnchor="end"
+                      interval={0}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      tick={{ fontSize: 10, fill: "#746A5A" }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={36}
+                      label={{
+                        value: "Path to Self-Actualization",
+                        angle: -90,
+                        position: "insideLeft",
+                        offset: 14,
+                        style: { fontSize: 10, fill: "#9B8E84", fontFamily: "DM Sans, sans-serif" },
+                      }}
+                    />
+                    <Tooltip content={<JourneyTooltip />} />
+                    <Line
+                      type="monotone"
+                      dataKey="actualizationLevel"
+                      stroke="#7A9E87"
+                      strokeWidth={3}
+                      dot={(props) => {
+                        const { cx, cy, payload } = props;
+                        return (
+                          <Dot
+                            key={`dot-${payload.approximateYear}`}
+                            cx={cx}
+                            cy={cy}
+                            r={6}
+                            fill="#C4622D"
+                            stroke="#F5F0E8"
+                            strokeWidth={2}
+                          />
+                        );
+                      }}
+                      activeDot={{ r: 8, fill: "#C4622D" }}
+                    >
+                      <LabelList
+                        dataKey="label"
+                        position="top"
+                        offset={8}
+                        style={{
+                          fontSize: "9px",
+                          fill: "#9B8E84",
+                          fontFamily: "DM Sans, sans-serif",
                         }}
-                        activeDot={{ r: 7, fill: "#C4622D" }}
-                      >
-                        <LabelList
-                          dataKey="label"
-                          position="bottom"
-                          offset={10}
-                          style={{
-                            fontSize: "10px",
-                            fill: "#746A5A",
-                            fontFamily: "DM Sans, sans-serif",
-                          }}
-                          angle={-35}
-                        />
-                      </Line>
-                    </LineChart>
-                  </ResponsiveContainer>
-                  <p className="text-center text-xs text-muted-foreground mt-1 italic">
-                    Toward your full potential
-                  </p>
-                </>
+                      />
+                    </Line>
+                  </LineChart>
+                </ResponsiveContainer>
               )}
             </div>
           )}
 
-          {/* Tab 2: Who You Are Now — SVG pyramid */}
+          {/* Tab 2: Who You Are Now — SVG pyramid with distinct colors */}
           {activeTab === "who" && (
             <div className="card-warm p-6">
-              <h3 className="font-display text-base text-foreground mb-6 text-center">
+              <h3 className="font-display text-base text-foreground mb-1 text-center">
                 Who You Are Now
               </h3>
+              <p className="text-xs text-center text-muted-foreground mb-5">Your life dimensions arranged by depth of meaning</p>
               <WellnessPyramid dimensions={profile.dimensions} />
             </div>
           )}
 
-          {/* Tab 3: Where to Journey Next — 2x2 quadrant */}
+          {/* Tab 3: Where to Journey Next — thrive gap bar chart */}
           {activeTab === "next" && (
             <div className="card-warm p-6">
-              <h3 className="font-display text-base text-foreground mb-6 text-center">
+              <h3 className="font-display text-base text-foreground mb-1 text-center">
                 Where to Journey Next
               </h3>
-              <FocusQuadrant dimensions={profile.dimensions} />
+              <p className="text-xs text-center text-muted-foreground mb-5">Bars show thriving level · dashed line shows importance · colour shows the gap</p>
+              <ThriveGapChart dimensions={profile.dimensions} />
             </div>
           )}
         </motion.div>

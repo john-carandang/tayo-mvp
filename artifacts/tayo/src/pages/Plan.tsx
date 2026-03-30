@@ -8,11 +8,24 @@ import { RotateCcw, Volume2, VolumeX } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
+// Strip all Markdown artifacts before display or TTS
+function cleanPlanText(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/`(.*?)`/g, "$1")
+    .replace(/^[-*+]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .trim();
+}
+
 async function speakText(text: string): Promise<HTMLAudioElement> {
+  const cleaned = cleanPlanText(text);
   const res = await fetch(`${BASE_URL}/api/speak`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text: cleaned }),
   });
   if (!res.ok) throw new Error("TTS failed");
   const blob = await res.blob();
@@ -31,31 +44,16 @@ function InlineText({ text }: { text: string }) {
   );
 }
 
-// Strip common LLM prefixes like "(a) ", "(b) ", "1. ", "A. " at line/section start
-function stripPrefixes(text: string): string {
-  return text
-    .replace(/^\s*\([a-zA-Z]\)\s+/gm, "")
-    .replace(/^\s*[a-zA-Z0-9]+[.)]\s+/gm, (m) => {
-      // Only strip if prefix is short (letter or short number)
-      const stripped = m.trimStart().match(/^([a-zA-Z]|[0-9]{1,2})[.)]/);
-      return stripped ? "" : m;
-    })
-    .trim();
-}
-
 // Plan section: sage uppercase header + gold divider + brown body text per spec
 function PlanSection({ heading, body }: { heading: string; body: string }) {
   const paragraphs = body.split(/\n\n+/).filter(Boolean);
 
   return (
     <div className="mb-7">
-      {/* Sage green, uppercase, bold 16px header */}
       <h3 style={{ color: "#638863", fontSize: "16px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
         {heading}
       </h3>
-      {/* Gold 1px divider */}
       <div style={{ borderBottom: "1px solid #D4A843", marginBottom: "12px" }} />
-      {/* Brown body text 14px line-height 1.9 */}
       <div className="space-y-3">
         {paragraphs.map((para, j) => {
           const lines = para.split("\n").filter(l => l.trim());
@@ -86,11 +84,9 @@ function PlanSection({ heading, body }: { heading: string; body: string }) {
 }
 
 function renderPlan(raw: string): ReactNode {
-  // Strip all (a), (b), etc. section letter prefixes
-  const cleaned = stripPrefixes(raw);
+  const cleaned = cleanPlanText(raw);
 
-  // Try to split by lines that look like section headers:
-  // A header line is short (<= 60 chars), followed by a newline and then content
+  // Try to split by lines that look like section headers
   const sectionRegex = /^(?![-•*\s])([^\n]{3,60})\n([\s\S]+?)(?=\n(?![-•*\s])[^\n]{3,60}\n|$)/gm;
 
   const sections: Array<{ heading: string; body: string }> = [];
@@ -108,7 +104,7 @@ function renderPlan(raw: string): ReactNode {
     return sections.map((s, i) => <PlanSection key={i} heading={s.heading} body={s.body} />);
   }
 
-  // Fallback: render as paragraphs with spec-compliant styles
+  // Fallback: render as paragraphs
   const paragraphs = cleaned.split(/\n\n+/).filter(Boolean);
   return paragraphs.map((para, i) => {
     const lines = para.split("\n").filter(l => l.trim());
@@ -166,21 +162,17 @@ export default function Plan() {
     if (isHydrated && !profile) setLocation("/");
   }, [isHydrated, profile, setLocation]);
 
-  // Pre-fetch TTS audio on load so it plays instantly on first click — do NOT auto-play
+  // Pre-fetch TTS audio on load — do NOT auto-play
   useEffect(() => {
     if (!plan || narrationStarted) return;
     setNarrationStarted(true);
 
-    const first500Words = plan.split(/\s+/).slice(0, 500).join(" ");
+    const first500Words = cleanPlanText(plan).split(/\s+/).slice(0, 500).join(" ");
     const narrationText = `Here is ${profile?.firstName ?? "your"} personal strategic plan. ${first500Words}`;
 
     speakText(narrationText)
-      .then((audio) => {
-        prefetchedAudioRef.current = audio;
-      })
-      .catch(() => {
-        // Prefetch failed — will fetch on demand when user clicks Listen
-      });
+      .then((audio) => { prefetchedAudioRef.current = audio; })
+      .catch(() => {});
   }, [plan, narrationStarted, profile]);
 
   const handleToggleNarration = useCallback(async () => {
@@ -195,10 +187,9 @@ export default function Plan() {
     setOrbState("speaking");
     setIsNarrating(true);
     try {
-      // Use pre-fetched audio if ready, otherwise fetch now
-      const first500Words = plan.split(/\s+/).slice(0, 500).join(" ");
-      const audio = prefetchedAudioRef.current
-        ?? await speakText(`Here is ${profile?.firstName ?? "your"} personal strategic plan. ${first500Words}`);
+      const first500Words = cleanPlanText(plan).split(/\s+/).slice(0, 500).join(" ");
+      const narrationText = `Here is ${profile?.firstName ?? "your"} personal strategic plan. ${first500Words}`;
+      const audio = prefetchedAudioRef.current ?? await speakText(narrationText);
       prefetchedAudioRef.current = null;
       audioRef.current = audio;
       audio.play();
@@ -223,14 +214,15 @@ export default function Plan() {
   // Recovery path: profile exists but plan hasn't been generated yet
   if (!plan) {
     return (
-      <StepLayout step={4} title="Your Strategic Plan">
+      <StepLayout step={4} title="Your Strategic Plan"
+        description="Your personal strategic plan, built from everything you shared. This is a living document — a mirror of who you are and a compass for where you are going.">
         <div className="max-w-lg mx-auto flex flex-col items-center justify-center py-24 gap-6 text-center">
           <p className="text-muted-foreground text-base">
             Your strategic plan hasn't been generated yet.
           </p>
           <button
             onClick={() => setLocation("/chat")}
-            className="btn-primary px-8 py-3 rounded-full font-semibold text-sm"
+            className="px-8 py-3 bg-primary text-primary-foreground rounded-full font-semibold text-sm hover:bg-primary/90 transition-all"
           >
             Go to Coaching Session
           </button>
@@ -240,7 +232,11 @@ export default function Plan() {
   }
 
   return (
-    <StepLayout step={4} title="Your Strategic Plan">
+    <StepLayout
+      step={4}
+      title="Your Strategic Plan"
+      description="Your personal strategic plan, built from everything you shared. This is a living document — a mirror of who you are and a compass for where you are going."
+    >
       <div className="max-w-2xl mx-auto space-y-6 pb-16">
 
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="card-warm overflow-hidden">
@@ -253,11 +249,10 @@ export default function Plan() {
               </h2>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <VoiceOrb state={orbState} size={36} onClick={plan ? handleToggleNarration : undefined} disabled={!plan} />
+              <VoiceOrb state={orbState} size={36} onClick={handleToggleNarration} />
               <button
                 onClick={handleToggleNarration}
-                disabled={!plan}
-                className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {isNarrating ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
                 {isNarrating ? "Stop" : "Listen"}
@@ -267,15 +262,7 @@ export default function Plan() {
 
           {/* Plan body */}
           <div className="px-6 py-5">
-            {!plan ? (
-              <div className="space-y-2 animate-pulse py-8">
-                {[95, 80, 88, 72, 91].map((w, i) => (
-                  <div key={i} className="h-4 rounded bg-foreground/8" style={{ width: `${w}%` }} />
-                ))}
-              </div>
-            ) : (
-              renderPlan(plan)
-            )}
+            {renderPlan(plan)}
           </div>
         </motion.div>
 
