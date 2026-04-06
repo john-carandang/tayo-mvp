@@ -1,0 +1,28 @@
+Context: Tayo is a voice-based AI life coaching app built with TypeScript and React, running on Replit. The current architecture has four tabs: Voice Intake, Dashboard (with Journey to Date and Thrive Gap visualizations), Coaching Session, and Strategic Plan. It uses three external APIs: OpenAI Whisper (voice-to-text transcription), Claude API (AI coaching brain), and ElevenLabs (voice output). All session data is currently in-memory only — nothing persists when the tab closes. API keys for OpenAI, Claude, and ElevenLabs are already stored as Replit Secrets. There is no user authentication and no database connected yet. The app is publicly accessible via its Replit URL.
+Task: Conduct a thorough security and data privacy audit of the entire Tayo codebase. Fix everything that can be safely resolved without introducing new features or changing existing UI. For issues requiring architectural work (e.g., adding authentication or a database), document them clearly in a SECURITY_ROADMAP.md file rather than implementing them now.
+Requirements:
+
+API key audit: Search every file — including config files, test files, and comments — for any hardcoded API keys or tokens for OpenAI, Claude, and ElevenLabs. Confirm all three are accessed exclusively via process.env. If any hardcoded values are found outside of Replit Secrets, move them immediately and flag what was found.
+Voice data transmission audit: Map exactly what data flows through each external API call:
+
+OpenAI Whisper: what audio data is sent, in what format, and whether any metadata is attached
+Claude API: what text is included in each message — specifically whether voice transcripts, user session history, or any identifiable content is passed in the context window
+ElevenLabs: what text is sent for synthesis and whether any user content is embedded
+For each external call, add an inline code comment in the format: // PRIVACY: [description of what is transmitted to [API name]]
+
+
+Console log audit: Search all .ts and .tsx files for console.log, console.error, and console.warn. Remove any that output voice transcripts, Claude responses, coaching session content, or any user-derived data. Logging of system events (e.g., "API call initiated", "response received") is acceptable — logging of user content is not.
+Input sanitization: Identify every point where user-generated content (voice transcript text or any typed input) enters the system. Add server-side sanitization at each entry point before the content is passed to any API or processed further.
+Error handling audit: Review all existing try/catch blocks and API error responses. Ensure no error messages returned to the client expose internal file paths, API response bodies, stack traces, or system configuration details. Replace verbose error outputs with generic user-facing messages. Log full error details server-side only.
+HTTPS verification: Confirm that all calls to OpenAI, Claude, and ElevenLabs endpoints explicitly use HTTPS. Flag any HTTP calls as critical.
+Unauthenticated access documentation: Do not implement authentication in this session. Instead, create SECURITY_ROADMAP.md in the project root and document: (a) the current risk — anyone with the Replit URL can access Tayo and trigger paid API calls with no login required; (b) what must be built before real user data is stored — specifically Supabase Auth with protected routes; (c) what Supabase Row Level Security (RLS) policies will be required when the database is connected; (d) the third-party data retention risk — OpenAI's default Whisper API retains audio inputs unless Zero Data Retention is enabled; ElevenLabs has its own data retention policy — document both and flag as decisions to make before beta launch.
+Dependency audit: Run npm audit and document any high or critical severity vulnerabilities in SECURITY_ROADMAP.md with severity levels. Do not auto-fix — flag for review.
+
+Security & Privacy:
+
+Do not introduce any new data collection, storage, or logging in this session
+Do not modify any existing UI, tab structure, or user-facing features — this is a backend and code hygiene audit only
+Do not expose environment variable values in any output files or logs
+
+UI/UX: No UI changes in this session whatsoever.
+Verification: Provide a structured summary with: (1) every vulnerability or risk identified, (2) which were fixed in this session and exactly how, (3) which are documented in SECURITY_ROADMAP.md for future sessions, (4) every file that was changed, and (5) any assumptions or limitations. Confirm the app still loads and runs correctly across all four tabs after changes are applied.

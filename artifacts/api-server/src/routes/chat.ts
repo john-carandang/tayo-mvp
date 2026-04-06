@@ -18,6 +18,36 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
+// ─── Input sanitization helpers ────────────────────────────────────────────
+
+/** Strip null bytes and control characters; hard-cap to maxLen characters. */
+function sanitizeText(value: unknown, maxLen: number): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // strip control chars (keep \t \n \r)
+    .slice(0, maxLen)
+    .trim();
+}
+
+/** Validate and sanitize an array of chat messages. */
+function sanitizeMessages(
+  raw: unknown,
+  maxMessages: number,
+  maxContentLen: number
+): Array<{ role: string; content: string }> {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .slice(0, maxMessages)
+    .filter((m) => m && typeof m === "object")
+    .map((m) => ({
+      role: ["user", "assistant"].includes(m.role) ? m.role : "user",
+      content: sanitizeText(m.content, maxContentLen),
+    }))
+    .filter((m) => m.content.length > 0);
+}
+
+// ─── Routes ────────────────────────────────────────────────────────────────
+
 // POST /api/transcribe — audio file → text via Whisper
 router.post("/transcribe", upload.single("audio"), async (req: Request, res: Response) => {
   try {
@@ -26,13 +56,23 @@ router.post("/transcribe", upload.single("audio"), async (req: Request, res: Res
       return;
     }
 
-    // Cast buffer to ArrayBuffer to satisfy File constructor typings
+    // Validate MIME type — only accept audio formats
+    const allowedMimeTypes = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav", "audio/x-m4a"];
+    const mimeType = req.file.mimetype || "";
+    if (!mimeType.startsWith("audio/") && !allowedMimeTypes.includes(mimeType)) {
+      res.status(400).json({ error: "Invalid file type. Audio files only." });
+      return;
+    }
+
+    // PRIVACY: Sends raw audio bytes (WebM/audio format, max 25 MB) to OpenAI Whisper.
+    // No user-identifying metadata is attached. Audio is not stored by this server.
+    // OpenAI may retain submitted audio per their data usage policies.
     const arrayBuf = req.file.buffer.buffer.slice(
       req.file.buffer.byteOffset,
       req.file.buffer.byteOffset + req.file.buffer.byteLength
     ) as ArrayBuffer;
     const transcription = await openai.audio.transcriptions.create({
-      file: new File([arrayBuf], "audio.webm", { type: req.file.mimetype || "audio/webm" }),
+      file: new File([arrayBuf], "audio.webm", { type: mimeType || "audio/webm" }),
       model: "whisper-1",
       response_format: "text",
     });
@@ -48,7 +88,9 @@ router.post("/transcribe", upload.single("audio"), async (req: Request, res: Res
 // POST /api/speak — text → mp3 via ElevenLabs
 router.post("/speak", async (req: Request, res: Response) => {
   try {
-    const { text } = req.body as { text: string };
+    const rawText = req.body && typeof req.body === "object" ? req.body.text : undefined;
+    const text = sanitizeText(rawText, 5000);
+
     if (!text) {
       res.status(400).json({ error: "No text provided" });
       return;
@@ -58,10 +100,13 @@ router.post("/speak", async (req: Request, res: Response) => {
     const apiKey = process.env.ELEVENLABS_API_KEY;
 
     if (!apiKey) {
-      res.status(500).json({ error: "ElevenLabs API key not configured" });
+      res.status(500).json({ error: "TTS service not configured" });
       return;
     }
 
+    // PRIVACY: Sends the cleaned, AI-generated coaching text (max 5 000 chars) to ElevenLabs
+    // for speech synthesis. This is Tayo's own response text — it does NOT contain raw user
+    // voice transcripts. ElevenLabs may retain submitted text per their data usage policies.
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
@@ -84,7 +129,7 @@ router.post("/speak", async (req: Request, res: Response) => {
 
     if (!response.ok) {
       const errText = await response.text();
-      req.log.error({ errText, status: response.status }, "ElevenLabs error");
+      req.log.error({ status: response.status, errText }, "ElevenLabs error");
       res.status(500).json({ error: "TTS failed" });
       return;
     }
@@ -101,11 +146,21 @@ router.post("/speak", async (req: Request, res: Response) => {
 // POST /api/chat — messages + systemPrompt → Claude response
 router.post("/chat", async (req: Request, res: Response) => {
   try {
-    const { messages, systemPrompt } = req.body as {
-      messages: Array<{ role: string; content: string }>;
-      systemPrompt: string;
-    };
+    const body = req.body && typeof req.body === "object" ? req.body : {};
 
+    // Sanitize: max 60 messages, each message content max 10 000 chars; system prompt max 25 000 chars
+    const messages = sanitizeMessages(body.messages, 60, 10000);
+    const systemPrompt = sanitizeText(body.systemPrompt, 25000);
+
+    if (messages.length === 0) {
+      res.status(400).json({ error: "No messages provided" });
+      return;
+    }
+
+    // PRIVACY: Sends the conversation history (user voice transcripts + Tayo responses) and the
+    // system prompt (includes the user's full profile JSON: name, life dimensions, values, events)
+    // to Anthropic Claude. All content originates from the user's own intake session.
+    // Anthropic may retain submitted messages per their data usage policies.
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 1024,
@@ -129,12 +184,23 @@ router.post("/chat", async (req: Request, res: Response) => {
 // POST /api/extract-profile — conversation text → structured profile JSON
 router.post("/extract-profile", async (req: Request, res: Response) => {
   try {
-    const { conversationText, firstName } = req.body as {
-      conversationText: string;
-      firstName: string;
-    };
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+
+    // Sanitize: full conversation transcript max 60 000 chars; name max 100 chars
+    const conversationText = sanitizeText(body.conversationText, 60000);
+    const firstName = sanitizeText(body.firstName, 100);
+
+    if (!conversationText) {
+      res.status(400).json({ error: "No conversation text provided" });
+      return;
+    }
 
     const nameHint = firstName ? `and ${firstName}` : "";
+
+    // PRIVACY: Sends the complete verbatim conversation transcript (all user voice transcripts
+    // and Tayo responses from the intake session) to Anthropic Claude for structured extraction.
+    // This is the most sensitive call — it contains everything the user said during intake.
+    // Anthropic may retain submitted messages per their data usage policies.
     const prompt = `You are an expert life coach analyst. Based on the following voice conversation transcript between Tayo (an AI life coach) ${nameHint}, extract a rich structured profile.
 
 Conversation:
@@ -198,12 +264,19 @@ Guidelines:
 // POST /api/narrative — profile → narrative paragraph (for dashboard)
 router.post("/narrative", async (req: Request, res: Response) => {
   try {
-    const { profile } = req.body as { profile: Record<string, unknown> & { firstName?: string } };
-    const firstName = typeof profile.firstName === "string" ? profile.firstName : "you";
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const profile = body.profile && typeof body.profile === "object" ? body.profile : {};
+    const firstName = typeof profile.firstName === "string" ? sanitizeText(profile.firstName, 100) : "you";
 
+    // Sanitize: limit profile serialisation to prevent oversized payloads
+    const profileJson = JSON.stringify(profile).slice(0, 20000);
+
+    // PRIVACY: Sends the user's structured profile JSON (name, life dimensions, events, values,
+    // purpose themes, narrative) to Anthropic Claude to generate a dashboard narrative paragraph.
+    // No raw voice transcripts are included in this call.
     const prompt = `You are Tayo, a warm and analytically precise life coach. Based on this structured profile, write a narrative paragraph of 5-8 sentences for the dashboard.
 
-Profile: ${JSON.stringify(profile, null, 2)}
+Profile: ${profileJson}
 
 The narrative must:
 - Be in second person addressing ${firstName}
@@ -233,20 +306,28 @@ Write only the narrative paragraph. No preamble.`;
 // POST /api/generate-plan — profile + chat history → strategic plan
 router.post("/generate-plan", async (req: Request, res: Response) => {
   try {
-    const { profile, conversationHistory, firstName } = req.body as {
-      profile: Record<string, unknown>;
-      conversationHistory: Array<{ role: string; content: string }>;
-      firstName: string;
-    };
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const profile = body.profile && typeof body.profile === "object" ? body.profile : {};
+    const firstName = sanitizeText(body.firstName, 100) || "Friend";
 
-    const conversationText = (conversationHistory || [])
+    // Sanitize: max 100 coaching messages, each max 10 000 chars
+    const conversationHistory = sanitizeMessages(body.conversationHistory, 100, 10000);
+
+    // Sanitize: limit profile serialisation size
+    const profileJson = JSON.stringify(profile).slice(0, 20000);
+
+    const conversationText = conversationHistory
       .map((m) => `${m.role === "user" ? firstName : "Tayo"}: ${m.content}`)
       .join("\n\n");
 
+    // PRIVACY: Sends the user's full profile JSON and the complete coaching conversation history
+    // (all user voice transcripts from the coaching session) to Anthropic Claude for plan
+    // generation. This is highly personal content shared willingly by the user.
+    // Anthropic may retain submitted messages per their data usage policies.
     const prompt = `Generate a deeply personal strategic life plan for ${firstName}. Be analytically precise, warm, and specific — ground every section in this user's actual profile and conversation. Do not use generic coaching language.
 
 Profile:
-${JSON.stringify(profile, null, 2)}
+${profileJson}
 
 ${conversationText ? `Coaching conversation:\n${conversationText}` : ""}
 

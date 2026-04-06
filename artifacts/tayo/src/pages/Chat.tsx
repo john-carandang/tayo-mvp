@@ -193,8 +193,7 @@ ${NO_MARKDOWN_RULE}`;
           const assistantMsg = { role: "assistant", content: aiResponse };
           setHistory([...updatedHistory, assistantMsg]);
           await playAI(aiResponse);
-        } catch (err) {
-          console.error(err);
+        } catch {
           setVoiceState("ERROR");
           setErrorMsg("Something went wrong. Tap to retry.");
         }
@@ -236,8 +235,8 @@ ${NO_MARKDOWN_RULE}`;
       const data = await res.json();
       localStorage.setItem("tayo_plan", data.plan);
       setLocation("/plan");
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setErrorMsg("Failed to generate plan. Please try again.");
     } finally {
       setIsGeneratingPlan(false);
     }
