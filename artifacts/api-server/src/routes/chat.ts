@@ -96,7 +96,16 @@ router.post("/speak", async (req: Request, res: Response) => {
       return;
     }
 
-    const voiceId = process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL";
+    const ALLOWED_VOICES = [
+      "EXAVITQu4vr4xnSDxMaL", // Maya
+      "VR6AewLTigWG4xSOukaG", // Carlos
+      "MF3mGyEYCl7XYWbV9V6O", // Aisha
+      "pNInz6obpgDQGcFmaJgB", // James
+    ];
+    const requestedVoice = sanitizeText(req.body?.voiceId, 50);
+    const voiceId = (requestedVoice && ALLOWED_VOICES.includes(requestedVoice))
+      ? requestedVoice
+      : (process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL");
     const apiKey = process.env.ELEVENLABS_API_KEY;
 
     if (!apiKey) {

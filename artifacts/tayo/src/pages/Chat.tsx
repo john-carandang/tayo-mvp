@@ -4,14 +4,41 @@ import { motion, AnimatePresence } from "framer-motion";
 import { StepLayout } from "@/components/layout/StepLayout";
 import { VoiceOrb, type OrbState } from "@/components/ui/VoiceOrb";
 import { useTayoProfile, useChatHistory } from "@/hooks/use-tayo-state";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { ChevronRight } from "lucide-react";
-
-type VoiceState = "IDLE" | "AI_SPEAKING" | "USER_PROMPT" | "USER_RECORDING" | "PROCESSING" | "ERROR";
+import { ChevronRight, Clock } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+const SESSION_DURATION_MS = 30 * 60 * 1000;
+const GRACEFUL_CLOSE_MS = 28 * 60 * 1000;
 
-const NO_MARKDOWN_RULE = `CRITICAL FORMATTING RULE: Never use any Markdown formatting in your responses. This means: no asterisks for bold or italics, no hashtags for headings, no bullet point symbols, no numbered lists with dots, no backticks, no underscores for emphasis. Write entirely in plain prose. Sentences and paragraphs only. This applies to every single message you generate in this conversation without exception.`;
+const COACHING_RULES = `COACHING BEHAVIOR RULES — FOLLOW EXACTLY:
+
+1. OPENING: Open with a warm welcome. For Session 2+, briefly reference one key theme or commitment from the last session as a warm bridge, then ask: "What's top of mind for you today?"
+
+2. QUESTION DISCIPLINE: Ask exactly one question per turn. Never stack questions. Never repeat a question verbatim. If the user says stop or moves on, honor that permanently.
+
+3. TURN LENGTH: Keep responses short, warm, and precise. Restate what you heard in one sentence, then ask your next question. No preambles. No filler. No prescriptive advice.
+
+4. NO ASSUMPTIONS: Do not assume anything about the user's life circumstances unless explicitly stated or at least 70% confidence from prior responses.
+
+5. FOLLOW THE USER: When the user redirects, follow them. Ask "Oh interesting — why?" gently. Do not redirect back to your original question.
+
+6. PRECISION PLAYBACK: Regularly reflect back what you are hearing — including incomplete thoughts, contradictions, and patterns. This is the most valuable thing you do.
+
+7. NON-SYCOPHANTIC: Never agree just to agree. Probe gently when something deserves more examination. Do not foster dependency on Tayo.
+
+8. STRENGTH-BASED: Frame challenges as design problems — natural friction from their values and circumstances — not failures.
+
+9. CLINICAL BOUNDARY: If the user shows clinical concern signals, acknowledge warmly and refer: "What you're sharing sounds like it may benefit from professional support beyond coaching. I'd encourage you to speak with a mental health professional."
+
+10. CULTURAL TOUCHPOINTS: Weave in light questions about music, shows, podcasts, books — natural trust-builders.
+
+11. SESSION CLOSE: When signalled to close, summarize 2–3 key themes warmly, then ask: "Before we close — what's one thing you'll do before we talk again?" Then: "How will you know you've followed through?"
+
+12. FORMAT: Never use markdown formatting — no asterisks, hashtags, bullet symbols, numbered lists. Plain warm prose only.
+
+ICF FRAMEWORK: Grounded in ICF Core Competencies (2025) and Co-Active Coaching. The client is naturally creative, resourceful, and whole.`;
 
 function cleanText(text: string): string {
   return text
@@ -24,12 +51,14 @@ function cleanText(text: string): string {
     .trim();
 }
 
-async function speakText(text: string): Promise<HTMLAudioElement> {
+async function speakText(text: string, voiceId?: string): Promise<HTMLAudioElement> {
   const cleaned = cleanText(text);
+  const body: Record<string, string> = { text: cleaned };
+  if (voiceId) body.voiceId = voiceId;
   const res = await fetch(`${BASE_URL}/api/speak`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: cleaned }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error("TTS failed");
   const blob = await res.blob();
@@ -45,10 +74,7 @@ async function transcribeAudio(blob: Blob): Promise<string> {
   return data.text || "";
 }
 
-async function chatWithAI(
-  messages: Array<{ role: string; content: string }>,
-  systemPrompt: string
-): Promise<string> {
+async function chatWithAI(messages: Array<{ role: string; content: string }>, systemPrompt: string): Promise<string> {
   const res = await fetch(`${BASE_URL}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -59,21 +85,37 @@ async function chatWithAI(
   return data.response || "";
 }
 
+function formatTime(ms: number) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
 export default function Chat() {
   const [, setLocation] = useLocation();
   const { profile, isHydrated } = useTayoProfile();
   const { history, setHistory } = useChatHistory();
+  const { getToken } = useAuth();
 
-  const [voiceState, setVoiceState] = useState<VoiceState>("IDLE");
+  const [voiceState, setVoiceState] = useState<"IDLE" | "AI_SPEAKING" | "USER_PROMPT" | "USER_RECORDING" | "PROCESSING" | "ERROR" | "CLOSING">("IDLE");
   const [currentAiText, setCurrentAiText] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(SESSION_DURATION_MS);
+  const [gracefulCloseTriggered, setGracefulCloseTriggered] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playbackCancelRef = useRef(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sessionStartRef = useRef<number>(Date.now());
+  const historyRef = useRef(history);
+  historyRef.current = history;
+
+  const coachVoiceId = localStorage.getItem("tayo_coach_voice_id") || undefined;
 
   useEffect(() => {
     if (isHydrated && !profile) setLocation("/");
@@ -83,54 +125,62 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [history]);
 
-  const buildSystemPrompt = useCallback(() => {
-    if (!profile) return "";
+  // Session timer
+  useEffect(() => {
+    if (sessionEnded) return;
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - sessionStartRef.current;
+      const remaining = SESSION_DURATION_MS - elapsed;
+      setTimeRemaining(remaining);
 
+      if (elapsed >= GRACEFUL_CLOSE_MS && !gracefulCloseTriggered) {
+        setGracefulCloseTriggered(true);
+      }
+      if (elapsed >= SESSION_DURATION_MS) {
+        clearInterval(interval);
+        handleSessionEnd();
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sessionEnded, gracefulCloseTriggered]);
+
+  const buildSystemPrompt = useCallback((isClosing = false) => {
+    if (!profile) return "";
     const topDim = [...profile.dimensions].sort((a, b) => b.importance - a.importance)[0];
-    const openingQuestion = topDim
-      ? `Looking at your ${topDim.name} dimension — what feels most alive or most unresolved for you there right now?`
-      : `What from your intake session is sitting with you most strongly right now?`;
 
     return `You are Tayo, a warm and incisive life coach. The user's name is ${profile.firstName}.
 
-Your very first message must do the following: Welcome ${profile.firstName} back warmly by name. Tell them this session is about going deeper — making sense of what their dashboard revealed, exploring their values and purpose, and preparing for their strategic plan. Tell them to plan for around 10 to 15 minutes. Invite them to speak freely and honestly. Then ask this opening question: "${openingQuestion}". Keep this opening under 80 words.
+${history.length === 0 ? `Your very first message: Welcome ${profile.firstName} back warmly by name. Tell them this session is for going deeper — making sense of what their journey revealed, exploring what matters most, and preparing for action. Tell them they have about 30 minutes. Then ask: "What's top of mind for you today?"` : ""}
 
 Full life profile (JSON):
-${JSON.stringify(profile, null, 2)}
+${JSON.stringify(profile, null, 2).slice(0, 8000)}
 
-Your role: Help ${profile.firstName} go deeper on their insights, clarify what they want, and prepare them for their strategic plan. Be direct, specific, and reference their actual dimensions, values, life events, and themes from the profile above. Keep responses concise — 2-4 sentences. End each response with a focused question.
+${isClosing ? `IMPORTANT: The session is nearing its end. Summarize 2–3 key themes from this conversation in warm, precise language. Then ask: "Before we close — what's one thing you'll do before we talk again?" And then: "How will you know you've followed through?"` : `Your role: Help ${profile.firstName} go deeper — clarify what they want, explore what their dashboard revealed. Reference their actual dimensions, values, life events. Direct and specific.`}
 
-${NO_MARKDOWN_RULE}`;
-  }, [profile]);
+${COACHING_RULES}`;
+  }, [profile, history]);
 
   const stopAudio = useCallback(() => {
     playbackCancelRef.current = true;
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
   }, []);
 
-  // Sentence-by-sentence parallel TTS for faster perceived latency
   const playAI = useCallback(async (text: string) => {
     stopAudio();
     playbackCancelRef.current = false;
     setCurrentAiText(text);
     setVoiceState("AI_SPEAKING");
 
-    const sentences = text
-      .split(/(?<=[.!?])\s+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-
+    const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 0);
     if (sentences.length === 0) { setVoiceState("USER_PROMPT"); return; }
 
-    // Fire all TTS in parallel, play sequentially.
-    // Attach .catch immediately so failed promises never become unhandled rejections.
-    const audioPromises = sentences.map(s => speakText(s).catch(() => null));
+    const audioPromises = sentences.map(s => speakText(s, coachVoiceId).catch(() => null));
 
     for (const promise of audioPromises) {
       if (playbackCancelRef.current) break;
       try {
         const audio = await promise;
-        if (!audio) continue; // TTS failed — skip silently
+        if (!audio) continue;
         if (playbackCancelRef.current) break;
         audioRef.current = audio;
         await new Promise<void>(resolve => {
@@ -139,18 +189,33 @@ ${NO_MARKDOWN_RULE}`;
           const p = audio.play();
           if (p !== undefined) p.catch(() => resolve());
         });
-      } catch {
-        // continue
-      }
+      } catch { /* continue */ }
     }
 
     if (!playbackCancelRef.current) setVoiceState("USER_PROMPT");
-  }, [stopAudio]);
+  }, [stopAudio, coachVoiceId]);
 
-  // Auto-start: greet the user when they first arrive
+  const handleSessionEnd = useCallback(async () => {
+    if (sessionEnded) return;
+    setSessionEnded(true);
+    stopAudio();
+
+    const token = getToken();
+    if (token && historyRef.current.length > 0) {
+      try {
+        const transcript = historyRef.current.map(m => `${m.role === "user" ? profile?.firstName ?? "User" : "Tayo"}: ${m.content}`).join("\n\n");
+        await fetch(`${BASE_URL}/api/sessions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ transcript, profile_json: profile, commitments: [] }),
+        });
+      } catch { /* non-fatal */ }
+    }
+  }, [sessionEnded, profile, getToken, stopAudio]);
+
+  // Auto-greet
   useEffect(() => {
     if (!isHydrated || !profile || history.length > 0) return;
-
     const greet = async () => {
       setVoiceState("PROCESSING");
       try {
@@ -189,7 +254,8 @@ ${NO_MARKDOWN_RULE}`;
           const updatedHistory = [...history, userMsg];
           setHistory(updatedHistory);
 
-          const aiResponse = await chatWithAI(updatedHistory, buildSystemPrompt());
+          const isClosing = gracefulCloseTriggered;
+          const aiResponse = await chatWithAI(updatedHistory, buildSystemPrompt(isClosing));
           const assistantMsg = { role: "assistant", content: aiResponse };
           setHistory([...updatedHistory, assistantMsg]);
           await playAI(aiResponse);
@@ -205,11 +271,11 @@ ${NO_MARKDOWN_RULE}`;
       setVoiceState("ERROR");
       setErrorMsg("Microphone access denied.");
     }
-  }, [history, buildSystemPrompt, setHistory, playAI]);
+  }, [history, buildSystemPrompt, setHistory, playAI, gracefulCloseTriggered]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current?.state === "recording") {
-      setVoiceState("PROCESSING"); // immediate visual feedback
+      setVoiceState("PROCESSING");
       mediaRecorderRef.current.stop();
     }
   }, []);
@@ -221,26 +287,23 @@ ${NO_MARKDOWN_RULE}`;
     else if (voiceState === "ERROR") { setVoiceState("USER_PROMPT"); setErrorMsg(""); }
   }, [voiceState, startRecording, stopRecording, stopAudio]);
 
-  const handleGeneratePlan = useCallback(async () => {
+  const handleGoToDashboard = useCallback(async () => {
     if (!profile) return;
     setIsGeneratingPlan(true);
     stopAudio();
     try {
-      const res = await fetch(`${BASE_URL}/api/generate-plan`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, conversationHistory: history, firstName: profile.firstName }),
-      });
-      if (!res.ok) throw new Error("Plan generation failed");
-      const data = await res.json();
-      localStorage.setItem("tayo_plan", data.plan);
-      setLocation("/plan");
-    } catch {
-      setErrorMsg("Failed to generate plan. Please try again.");
-    } finally {
-      setIsGeneratingPlan(false);
-    }
-  }, [profile, history, setLocation, stopAudio]);
+      const token = getToken();
+      if (token) {
+        await fetch(`${BASE_URL}/api/dashboard-snapshot`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ profile_json: profile }),
+        });
+      }
+    } catch { /* non-fatal */ }
+    setIsGeneratingPlan(false);
+    setLocation("/dashboard");
+  }, [profile, setLocation, stopAudio, getToken]);
 
   const orbStateDisplay: OrbState =
     voiceState === "AI_SPEAKING" ? "speaking" :
@@ -256,29 +319,60 @@ ${NO_MARKDOWN_RULE}`;
 
   if (!isHydrated || !profile) return null;
 
+  // Session ended
+  if (sessionEnded) {
+    return (
+      <StepLayout step={3} title="Session Complete">
+        <div className="flex flex-col items-center gap-6 pt-8 text-center">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: "rgba(122,158,135,0.15)" }}>
+              <CheckIcon />
+            </div>
+          </motion.div>
+          <h2 className="font-display text-2xl" style={{ color: "#2C1810" }}>We've reached the end of our time together today.</h2>
+          <p className="text-sm max-w-sm" style={{ color: "#746A5A" }}>Your session has been saved. Head back to your dashboard to see how it's evolved.</p>
+          <button
+            onClick={() => setLocation("/dashboard")}
+            className="flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm"
+            style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
+          >
+            View your dashboard
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </StepLayout>
+    );
+  }
+
   return (
-    <StepLayout
-      step={3}
-      title="Coaching Session"
-      description="This is your space to go deeper with Tayo — making sense of your dashboard, exploring your values and purpose, and preparing to articulate your life's direction. Plan for around 10–15 minutes."
-    >
+    <StepLayout step={3} title="Coaching Session" description="Go deeper with Tayo — explore what your journey reveals and prepare to move with clarity.">
       <div className="flex flex-col items-center gap-6">
+
+        {/* Timer */}
+        <div className={cn("flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full",
+          timeRemaining < 5 * 60 * 1000 ? "bg-red-50 text-red-600" : gracefulCloseTriggered ? "bg-amber-50 text-amber-600" : "text-muted-foreground"
+        )}>
+          <Clock className="w-3.5 h-3.5" />
+          {gracefulCloseTriggered ? `Wrapping up — ${formatTime(timeRemaining)} left` : formatTime(timeRemaining)}
+        </div>
+
+        {gracefulCloseTriggered && !sessionEnded && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            className="text-center px-4 py-3 rounded-xl text-sm max-w-sm"
+            style={{ backgroundColor: "rgba(212,168,67,0.12)", color: "#8B5A2B", fontStyle: "italic" }}>
+            We're nearing the end of our session. Tayo will begin wrapping up.
+          </motion.div>
+        )}
 
         {/* Chat history */}
         {history.length > 0 && (
           <div className="w-full max-w-lg space-y-3 max-h-72 overflow-y-auto pr-1">
             {history.map((msg, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-              >
+              <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
                 <div className={cn(
                   "max-w-xs sm:max-w-sm rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-tr-sm"
-                    : "card-warm text-foreground rounded-tl-sm"
+                  msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm" : "card-warm text-foreground rounded-tl-sm"
                 )}>
                   {msg.content}
                 </div>
@@ -288,61 +382,55 @@ ${NO_MARKDOWN_RULE}`;
           </div>
         )}
 
-        {/* Current AI text while speaking */}
+        {/* Speaking text */}
         <AnimatePresence mode="wait">
           {voiceState === "AI_SPEAKING" && currentAiText && (
-            <motion.p
-              key={currentAiText}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-sm text-center text-muted-foreground max-w-sm px-4 italic"
-            >
+            <motion.p key={currentAiText} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="text-sm text-center text-muted-foreground max-w-sm px-4 italic">
               "{currentAiText}"
             </motion.p>
           )}
         </AnimatePresence>
 
-        {/* Voice Orb */}
-        <VoiceOrb
-          state={orbStateDisplay}
-          size={100}
-          onClick={handleOrbClick}
-          label={orbLabel}
-        />
+        <VoiceOrb state={orbStateDisplay} size={100} onClick={handleOrbClick} label={orbLabel} />
 
-        {errorMsg && (
-          <p className="text-sm text-destructive text-center">{errorMsg}</p>
-        )}
+        {errorMsg && <p className="text-sm text-destructive text-center">{errorMsg}</p>}
 
-        {/* Generate Plan button — available after first user exchange */}
-        {history.filter(m => m.role === "user").length >= 1 && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4"
+        {/* Action buttons */}
+        <div className="flex flex-col gap-3 items-center mt-2">
+          {history.filter(m => m.role === "user").length >= 1 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <button
+                onClick={handleGoToDashboard}
+                disabled={isGeneratingPlan}
+                className="flex items-center gap-2 px-6 py-3 border-2 rounded-full font-semibold text-sm hover:opacity-80 transition-all disabled:opacity-50"
+                style={{ borderColor: "#C4622D", color: "#C4622D" }}
+              >
+                {isGeneratingPlan ? (
+                  <><div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /> Updating your dashboard…</>
+                ) : (
+                  <>Update my dashboard <ChevronRight className="w-4 h-4" /></>
+                )}
+              </button>
+            </motion.div>
+          )}
+          <button
+            onClick={handleSessionEnd}
+            className="text-xs"
+            style={{ color: "#9B8E84" }}
           >
-            <button
-              onClick={handleGeneratePlan}
-              disabled={isGeneratingPlan}
-              className="flex items-center gap-2 px-6 py-3 border-2 border-primary text-primary rounded-full font-semibold text-sm hover:bg-primary hover:text-primary-foreground transition-all disabled:opacity-50"
-            >
-              {isGeneratingPlan ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                  Building your plan…
-                </>
-              ) : (
-                <>
-                  Generate My Life Strategic Plan
-                  <ChevronRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </motion.div>
-        )}
-
+            End session early
+          </button>
+        </div>
       </div>
     </StepLayout>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <path d="M6 16L12 22L26 10" stroke="#7A9E87" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
