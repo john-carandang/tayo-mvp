@@ -1,0 +1,319 @@
+This is a substantial build touching almost every layer of the product. Let me structure it precisely.
+
+---
+
+**TAYO — V3 BUILD PROMPT**
+
+**Do not rebuild from scratch. Build on the existing codebase. Apply the changes below in the order listed — infrastructure first, then features, then UI.**
+
+---
+
+**PART 0 — INFRASTRUCTURE (DO FIRST, BEFORE ANY FEATURE WORK)**
+
+**0A. Supabase persistent memory**
+
+Set up Supabase with the following tables. All tables must enforce Row-Level Security (RLS) — every query must be filtered by `user_id`. No unauthenticated access to any user data.
+
+```sql
+-- User profiles
+CREATE TABLE user_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  first_name TEXT,
+  coach_id TEXT,
+  warmup_data JSONB,
+  consent_acknowledged BOOLEAN DEFAULT FALSE,
+  consent_timestamp TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Session transcripts
+CREATE TABLE sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  session_number INTEGER,
+  transcript TEXT,
+  profile_json JSONB,
+  commitments JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Dashboard snapshots (versioned)
+CREATE TABLE dashboard_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  snapshot_version INTEGER,
+  chapter_cards JSONB,
+  portrait_stats JSONB,
+  scorecard JSONB,
+  narrative_blurb TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Assignments
+CREATE TABLE assignments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT,
+  description TEXT,
+  type TEXT, -- 'daily_habit' | 'one_off_task' | 'reflection'
+  due_date DATE,
+  status TEXT DEFAULT 'pending', -- 'pending' | 'complete' | 'skipped'
+  reflection TEXT,
+  resources JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Between-session messages
+CREATE TABLE check_in_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT, -- 'tayo' | 'user'
+  content TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+Enable RLS on all tables. Store `SUPABASE_URL` and `SUPABASE_ANON_KEY` in Replit Secrets. The app must use Supabase Auth for user identity — no anonymous sessions for personal data.
+
+**0B. Fix all critical bugs before any new feature work**
+
+- Dashboard build failure — identify and fix the root cause of the 4x error Toni encountered
+- Data wipe when re-entering Voice Intake — resolved by Supabase persistence (user data must survive navigation)
+- Abrupt session end — implement graceful 30-minute close (see Part 2)
+- AI must never reference a chart during voice intake that the user cannot see
+- Pyramid text cutoff — pyramid is being replaced (see Part 3, Tab B); remove it entirely
+
+---
+
+**PART 1 — LANDING PAGE, DISCLOSURES & ONBOARDING (NEW)**
+
+Create a new `/` landing page that users see before any coaching begins. This replaces whatever currently loads at the root.
+
+**1A. Landing page content**
+
+- Brief headline and value statement for Tayo
+- Process map showing the 4-step user journey (Voice Intake → Dashboard → Coaching Session → Next Moves)
+- Imagery featuring BIPOC Millennial individuals — use placeholder images if needed, styled warmly
+- Clear explanation of what Tayo is and what it is not — specifically: "Tayo is an AI coaching tool designed to support self-understanding and personal growth. It is not a human coach, therapist, or mental health service."
+- CTA button: "Begin your journey" → leads to the disclosures flow
+
+**1B. ICF Disclosures and Informed Consent (required before any coaching)**
+
+Before a user can access the Voice Intake, they must read and explicitly acknowledge all six disclosures. Render these as a clean, readable modal or dedicated page. Each item must have a checkbox. The "Continue" button is disabled until all are checked. On confirmation, log `consent_acknowledged: true` and `consent_timestamp` to Supabase.
+
+The six required disclosures (render in plain language exactly as written):
+
+1. "Tayo is an AI coaching tool, not a human coach. You are interacting with artificial intelligence."
+2. "Tayo is a coaching service designed to support self-understanding and personal growth. It is not a mental health service, therapy, or crisis support. If you are experiencing a mental health crisis, please contact a professional immediately."
+3. "Tayo's coaching approach is aligned with ICF Core Competencies (2025) and ICF AI Coaching Standards. It is not a substitute for working with a credentialed human coach. Find an ICF coach at coachingfederation.org/get-coaching/"
+4. "Your coaching conversations and personal data are stored securely and used only to personalize your Tayo experience. They are never sold to third parties."
+5. "You may request deletion of your data at any time by contacting us."
+6. "You may end your coaching relationship with Tayo at any time for any reason."
+
+**1C. Coach selection**
+
+After disclosures, present a coach selection screen. Display 4 coach profiles as cards. Each has: a name, a short personality descriptor (2 sentences), and a "Hear my voice" button that plays a short ElevenLabs audio sample.
+
+Coach roster:
+
+| Name | Identity | Personality | ElevenLabs Voice |
+|---|---|---|---|
+| Maya | Black woman, 30s | Warm, direct, strength-based | Use a warm female ElevenLabs voice |
+| Carlos | Latino man, 40s | Grounded, reflective, patient | Use a warm male ElevenLabs voice |
+| Aisha | South Asian woman, 30s | Curious, incisive, energizing | Use a bright female ElevenLabs voice |
+| James | White man, 50s | Calm, structured, encouraging | Use a calm male ElevenLabs voice |
+
+Store the selected coach's ID and associated ElevenLabs voice ID in Supabase `user_profiles`. This coach persists across all sessions.
+
+**1D. Warm-up ritual**
+
+After coach selection, present a warm-up screen before the first intake. Frame it as: "Before we begin, help your coach get to know you a little. This takes about 3 minutes and is entirely optional." The warm-up is fun and light — not a questionnaire.
+
+- Upload 4 photos that represent you right now (can be places, people, objects, anything)
+- Your top 3 Spotify artists or the song most on repeat lately (free text)
+- A YouTube video or channel you keep coming back to (free text)
+- A book, show, or podcast that's been on your mind (free text)
+
+Store warm-up data in Supabase `user_profiles.warmup_data` as JSON. This data is passed to Claude as context in Session 1 to seed the coaching conversation naturally.
+
+---
+
+**PART 2 — COACHING CONVERSATION OVERHAUL**
+
+Update the Claude system prompt for ALL coaching sessions (intake and follow-up) to reflect the following behavioral standards. These changes apply to the existing voice intake and coaching session pages.
+
+**2A. Core system prompt additions (add to every Claude coaching call)**
+
+Append the following to every coaching session system prompt:
+
+```
+COACHING BEHAVIOR RULES — FOLLOW EXACTLY:
+
+1. OPENING: Never set the agenda for the user. Open every session with a warm, open question. For Session 1, open with a welcome and then: "What's top of mind for you today?" For Session 2+, briefly reference one key theme or commitment from the last session as a warm bridge, then ask: "What's top of mind for you today?" Example: "Last time we talked about the tension between building Tayo and staying grounded — I've been thinking about that. What's top of mind for you today?"
+
+2. QUESTION DISCIPLINE: Ask exactly one question per turn. Never stack questions. Never repeat a question verbatim — rephrase or drop it. If the user explicitly says stop or moves on, honor that permanently for the rest of the session.
+
+3. TURN LENGTH: Keep your responses short, warm, and precise. Restate what you heard in one sentence, then ask your next question. No preambles. No filler. No prescriptive advice.
+
+4. NO ASSUMPTIONS: Do not assume anything about the user's life circumstances — living situation, relationship status, family structure, financial situation — unless the user has explicitly stated it or you are at least 70% confident it was clearly implied in a prior response. Ask open questions to gather context before making any inference.
+
+5. FOLLOW THE USER: When the user redirects the conversation, follow them. Ask "Oh interesting — why?" gently and without judgment. Do not redirect back to your original question.
+
+6. PRECISION PLAYBACK: Regularly reflect back what you are hearing — including incomplete thoughts, contradictions, and patterns the user may not have noticed. This is the most valuable thing you do. Example: "I notice you described your career as 'fine' three times, but your energy completely shifted when you mentioned Tayo. That gap seems worth sitting with."
+
+7. NON-SYCOPHANTIC: Never agree with the user just to agree. Probe and gently reframe when something deserves more examination. Ask a question rather than validating. Do not foster dependency on Tayo.
+
+8. STRENGTH-BASED: Always frame the user's challenges as design problems — natural friction created by their values, ambitions, and circumstances — not as failures or deficits.
+
+9. CLINICAL BOUNDARY: If the user presents signals of clinical concern — depression, trauma, crisis, self-harm — acknowledge warmly and refer: "What you're sharing sounds like it may benefit from professional support beyond coaching. I'd encourage you to speak with a mental health professional." Do not attempt to coach through clinical material.
+
+10. CULTURAL TOUCHPOINTS: When gathering context early in a session, weave in light questions about the user's cultural touchpoints — music, shows, podcasts, books. These are natural trust-builders and often reveal values more honestly than direct questions.
+
+11. SESSION CLOSE: At the 28-minute mark (or when the user signals they are done), initiate a graceful close: summarize 2–3 key themes from the session in warm, precise language, then ask: "Before we close — what's one thing you'll do before we talk again?" And then: "How will you know you've followed through?" Log commitments to Supabase.
+
+12. FORMAT: Never use markdown formatting in your responses — no asterisks, hashtags, bullet symbols, or numbered lists. Speak in plain, warm prose only.
+
+ICF FRAMEWORK: Your coaching is grounded in ICF Core Competencies (2025) and Co-Active Coaching principles. The client is naturally creative, resourceful, and whole. You are partnering with them — not directing them.
+```
+
+**2B. Session 1 — specific system prompt additions**
+
+For Session 1 only, prepend:
+
+```
+This is the user's first session. Your goal is inquiry and relationship-building only — do not attempt to cover all dimensions or generate a complete profile in one session. Build trust first. Go deep on whatever the user brings. The dashboard will populate from whatever you gather, and both of you will return to add more.
+
+Warm-up context (use naturally in conversation, not as a checklist):
+[INSERT WARM-UP DATA FROM SUPABASE]
+```
+
+**2C. Session 2+ — specific system prompt additions**
+
+For follow-up sessions, prepend:
+
+```
+Prior session context:
+- Session number: [N]
+- Key themes from last session: [EXTRACT FROM LAST SESSION'S PROFILE JSON — top 2-3 themes]
+- Commitments made: [LOAD FROM SUPABASE assignments table]
+- User's name: [LOAD FROM SUPABASE]
+
+Open by briefly and warmly referencing one of these themes or commitments as a bridge, then invite the user to share what's top of mind today. Do not turn the opening into a progress report.
+```
+
+**2D. 30-minute session cap**
+
+Track session duration in the frontend. At 28 minutes, trigger the graceful close sequence in the system prompt context. At exactly 30 minutes, stop accepting new voice input and display: "We've reached the end of our time together today. Your session has been saved." Save transcript and updated profile to Supabase.
+
+---
+
+**PART 3 — DASHBOARD OVERHAUL (4 TABS)**
+
+Restructure the existing dashboard to have exactly 4 tabs. All data sourced from Supabase. All tabs display a banner at the top: "This is your evolving portrait — it will deepen with each session." Prior dashboard versions are accessible via a "View history" link that shows previous snapshots from `dashboard_snapshots`.
+
+**Tab A — Journey to Date (Chapter Cards)**
+
+Replace the existing life map chart with a horizontal scroll of chapter cards. Data sourced from `profile_json.lifeEvents` in Supabase.
+
+Each card contains:
+- Chapter title (bold)
+- Mood tag with color-coded dot: Formative (blue), Challenging (red), Breakthrough (green), Transitional (amber)
+- 2-sentence description
+- Life period label (e.g., "Early career", "Mid 20s") — not a year
+
+Cards are connected by a thin horizontal line showing the arc of the journey. The last card is always labeled "Right now" and uses the Transitional styling. Scrollable left-to-right. Warm retro aesthetic — cream background, warm brown typography.
+
+If no chapter data exists yet: show a placeholder card that reads "Your journey will appear here after your first session."
+
+**Tab B — Who You Are Now (Portrait Stats Block)**
+
+Replace the pyramid entirely with a portrait stats block. Data sourced from `profile_json.dimensions`.
+
+Structure:
+- Top: Avatar/initials circle + user's first name + purpose statement (from scorecard)
+- Below: One row per dimension (Mental & Emotional, Career, Physical, Social & Relationships, Financial), each showing:
+  - Dimension name (bold)
+  - One-line personal description generated from conversation (not generic)
+  - Horizontal fill bar: green = Thriving, amber = Building, red = Needs Attention
+  - Word label right-aligned: "Thriving" / "Building" / "Needs Attention"
+- Legend at bottom
+
+No numerical scores. Relative fill only (high = 80% width, medium = 50%, low = 25%). If a dimension has not been discussed, show it as "Not yet explored" in muted styling.
+
+**Tab C — Your Strategic Plan (Scorecard)**
+
+Replace the long-form strategic plan with a clean scorecard grid. Data sourced from `profile_json.scorecard`.
+
+Sections (each only renders if sufficient data exists):
+- **Purpose** — 2–3 sentence prose statement
+- **Core Values** — 0–5 bullets, each personally re-termed (e.g., "Competition-Ready Vitality" not "health")
+- **Strengths** — 0–5 sharp bullets grounded in conversation
+- **Strategic Challenges** — 0–5 bullets framed as design problems, not failures
+- **Focus Areas** — 0–5 bullets grounded in gap between importance and thriving
+
+At the top of this tab: a small voice orb button (60px) labeled "Listen to your story" — plays ElevenLabs narration of the full plan. Generate narration on first load and cache audio URL in Supabase. Replay button after first play.
+
+Cross-tab persistent narrative blurb: a 5–8 sentence narrative in second person, displayed below the tab switcher across all three tabs. Updates after each session. Labeled "Your evolving portrait." Stored in `dashboard_snapshots.narrative_blurb`.
+
+**Tab D — Your Next Moves (Assignment Tracker)**
+
+New tab. Warm, journey-aesthetic — not a generic to-do list. Data sourced from Supabase `assignments` table.
+
+Each assignment is displayed as a named "move" card containing:
+- Move title (bold, evocative)
+- Description (1–2 sentences)
+- Type badge: "Daily habit" / "One-off task" / "Reflection"
+- Due date
+- Status toggle: Pending → Complete
+
+When a user marks a move as Complete, immediately open a text chat panel below with: "How did it go? What did you learn?" The user's response is saved to `assignments.reflection` and stored in Supabase memory for use in the next coaching session.
+
+Below assignments: a "Resources for you" section. Show 2–4 resource cards (articles, podcasts, YouTube, Instagram, books) tailored to the user's conversation history. Generate these via a `/api/resources` endpoint using Claude with the user's profile as context. Each card: title, type badge, brief description, link.
+
+Between-session check-in: Tayo can send a text nudge mid-week. Show a small notification badge on the tab when a nudge is waiting. The nudge opens a lightweight text chat panel (not voice). Messages stored in `check_in_messages` table.
+
+---
+
+**PART 4 — SECURITY REQUIREMENTS**
+
+Apply to all new and existing code:
+
+- All Claude, ElevenLabs, Whisper, and Supabase API calls must be routed through the Express backend — never from the frontend
+- All API keys remain in Replit Secrets — never hardcoded
+- Every Supabase query must include `eq('user_id', authenticatedUserId)` — no unfiltered queries
+- No PII in URL parameters or console logs
+- Sensitive user inputs (emotional disclosures) must never be logged to console
+- Input sanitization on all user-submitted text before processing or storage
+- HTTPS only — no plaintext transmission
+
+---
+
+**PART 5 — RETRO DESIGN SYSTEM (APPLY CONSISTENTLY)**
+
+Cream background (#F5F0E8) throughout. No dark backgrounds except inside VoiceOrb. Sage green (#7A9E87) for active states and accents. Burnt orange (#C4622D) for CTAs and highlights. Warm brown (#2C1810) for primary text. Gold (#D4A843) for secondary accents.
+
+All new UI components must match this palette. No new colors introduced.
+
+---
+
+**DEFINITION OF DONE**
+
+This build is complete when:
+
+1. New user lands on the landing page, reads and acknowledges all six disclosures, selects a coach, and completes the warm-up ritual before any coaching begins — all logged to Supabase
+2. Session 1 opens with a warm welcome and "What's top of mind for you today?" — no agenda-setting by Tayo
+3. Session 2+ opens with a brief warm reference to a prior theme before "What's top of mind?"
+4. Sessions cap at 30 minutes with graceful close and commitment logging
+5. All session data persists in Supabase — returning to the app shows the user's prior state
+6. Dashboard Tab A shows Chapter Cards in horizontal scroll with correct mood colors
+7. Dashboard Tab B shows Portrait Stats Block — no pyramid, no numbers
+8. Dashboard Tab C shows Scorecard with correct sections, 0–5 bullets each, voice narration button functional
+9. Dashboard Tab D shows Assignment Tracker with completion → reflection flow and resource recommendations
+10. All prior dashboard versions accessible via "View history"
+11. No data is ever wiped by navigating back to Voice Intake
+12. All API calls routed through Express backend — no direct frontend API calls
+13. All five original bugs resolved (dashboard build failure, data wipe, abrupt session end, chart reference during intake, pyramid text cutoff)
+14. No markdown symbols (asterisks, hashtags) appear anywhere in AI output
+
+After completing this, take a screenshot of each of the 4 dashboard tabs and the landing/disclosure flow, and confirm in a brief summary: what was built, what files were changed, any known limitations, and any security considerations addressed.
