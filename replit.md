@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. The main application is **Tayo V3** — a voice-first life coaching platform with Supabase auth/persistence, full onboarding flow, 4-tab dashboard, 30-minute session cap, and assignment tracker.
+pnpm workspace monorepo using TypeScript. The main application is **Tayo V3.1** — a voice-first life coaching platform with Supabase auth/persistence, full onboarding flow, 3-tab dashboard, 28-minute session timer, assignment commitment capture, session lock/unlock logic, and standalone Next Moves + Profile pages.
 
 ## Stack
 
@@ -22,24 +22,29 @@ pnpm workspace monorepo using TypeScript. The main application is **Tayo V3** �
 ```text
 artifacts-monorepo/
 ├── supabase/
-│   └── migrations/001_initial.sql    # MUST run in Supabase SQL Editor first
+│   ├── migrations/001_initial.sql     # Run first — creates core tables
+│   └── migrations/002_v31.sql         # Run second — adds last_name, last_session_ended_at, coach_voice_id
 ├── artifacts/
 │   ├── tayo/                         # Main Tayo frontend (React + Vite)
 │   │   └── src/
-│   │       ├── contexts/AuthContext.tsx     # Supabase auth context
+│   │       ├── contexts/AuthContext.tsx     # Supabase auth context (Google OAuth + email/password)
 │   │       ├── lib/supabase.ts              # Frontend Supabase client
 │   │       ├── pages/
-│   │       │   ├── Landing.tsx     # Hero + auth form
-│   │       │   ├── Disclosures.tsx # ICF consent (6 checkboxes)
-│   │       │   ├── CoachSelect.tsx # 4 coaches + voice preview
-│   │       │   ├── Warmup.tsx      # Photos, music, YouTube, media
-│   │       │   ├── Intake.tsx      # Voice intake (Step 1)
-│   │       │   ├── Dashboard.tsx   # 4-tab dashboard (Step 2)
-│   │       │   ├── Chat.tsx        # Coaching session w/ 30-min timer (Step 3)
-│   │       │   └── Plan.tsx        # Redirects to /dashboard (deprecated)
+│   │       │   ├── Landing.tsx      # Logged-out hero + logged-in session CTA (with lock/unlock)
+│   │       │   ├── SignUp.tsx       # Email/password + Google OAuth sign-up
+│   │       │   ├── Login.tsx        # Email/password + Google OAuth sign-in
+│   │       │   ├── FAQ.tsx          # Accordion FAQ page
+│   │       │   ├── Disclosures.tsx  # 2-paragraph ICF consent (simplified)
+│   │       │   ├── CoachSelect.tsx  # 4 coaches + voice preview (V3.1 voice IDs)
+│   │       │   ├── Warmup.tsx       # Photos, music, YouTube, media + voice guidance on load
+│   │       │   ├── Intake.tsx       # Voice intake (28-min timer, assignment commitment capture, session 1 vs 2+)
+│   │       │   ├── Dashboard.tsx    # 3-tab dashboard (Journey, Portrait, Strategic Plan) + session lock CTA
+│   │       │   ├── NextMoves.tsx    # Standalone Next Moves page (assignments + resources + session banner)
+│   │       │   └── Profile.tsx      # Profile portal (Overview, Past Sessions, Settings tabs)
 │   │       ├── components/
-│   │       │   ├── layout/StepLayout.tsx
-│   │       │   └── ui/VoiceOrb.tsx
+│   │       │   ├── layout/Navbar.tsx      # Sticky navbar (logged-in/out states)
+│   │       │   ├── layout/StepLayout.tsx  # Onboarding step wrapper
+│   │       │   └── ui/VoiceOrb.tsx        # Voice orb (idle/speaking/listening/processing)
 │   │       └── hooks/use-tayo-state.ts
 │   └── api-server/                   # Express API server (port 8080)
 │       └── src/
@@ -48,31 +53,38 @@ artifacts-monorepo/
 │           └── routes/
 │               ├── chat.ts           # Whisper, ElevenLabs, Claude, extract-profile
 │               ├── auth.ts           # profile GET/POST, check-in messages
-│               ├── sessions.ts       # session save/load, dashboard snapshots
-│               ├── assignments.ts    # assignments CRUD, resources, coach-sample
+│               ├── sessions.ts       # session save/load, last_session_ended_at, dashboard snapshots
+│               ├── assignments.ts    # assignments CRUD + bulk, resources, coach-sample
 │               └── migrate.ts        # /api/admin/health, /api/admin/migrate
 ├── pnpm-workspace.yaml
 ├── tsconfig.base.json
 └── package.json
 ```
 
-## Tayo V3 — Application Flow
+## Tayo V3.1 — Application Flow
 
-### Onboarding (pre-steps, auth required)
-1. **Landing** (`/`) — hero, 4-step map, auth form (email + password)
-2. **Disclosures** (`/disclosures`) — 6 ICF checkboxes, saved to Supabase
-3. **Coach Selection** (`/coach`) — 4 coaches, voice preview via ElevenLabs
-4. **Warm-up** (`/warmup`) — photos, music, YouTube, book/show/podcast
+### Onboarding (auth required)
+1. **Landing** (`/`) — logged-out hero / logged-in session CTA with lock/unlock state
+2. **Sign Up** (`/sign-up`) — first name, last name, email/password, Google OAuth
+3. **Login** (`/login`) — email/password, Google OAuth
+4. **Disclosures** (`/disclosures`) — 2-paragraph simplified consent (What Tayo is + data use)
+5. **Coach Selection** (`/coach`) — 4 coaches with voice previews (V3.1 ElevenLabs voice IDs)
+6. **Warm-up** (`/warmup`) — photos, music, YouTube, book/show/podcast + coach voice plays on load
 
 ### Main Journey
-1. **Voice Intake** (`/intake`) — 15-20 min voice conversation, extracts TayoProfile, saves to Supabase sessions + generates dashboard snapshot
-2. **Dashboard** (`/dashboard`) — 4 tabs:
+1. **Voice Intake** (`/intake`) — 28-min graceful close timer; Session 1 vs 2+ system prompts; commitment capture phase; saves assignments to Supabase; sets `last_session_ended_at`
+2. **Dashboard** (`/dashboard`) — 3 tabs:
    - **Tab A** — Journey to Date (horizontal chapter cards)
-   - **Tab B** — Who You Are Now (dimension fill bars)
-   - **Tab C** — Your Strategic Plan (scorecard: purpose, values, strengths, challenges, focus areas)
-   - **Tab D** — Your Next Moves (assignments + resources)
-3. **Coaching Session** (`/chat`) — 30-min timer (graceful close at 28 min), coaching rules, Supabase session save
-4. **Plan** (`/plan`) — redirects to `/dashboard` (deprecated)
+   - **Tab B** — Who You Are Now (dimension fill bars; dark green=Thriving, sage=Building, yellow=Needs Attention)
+   - **Tab C** — Your Strategic Plan (scorecard: purpose, values, strengths, challenges, focus areas with listen button)
+   - Session lock CTA at bottom (locked: countdown / unlocked: Begin Session N)
+3. **Next Moves** (`/next-moves`) — session banner (locked/unlocked) + assignments + curated resources
+4. **FAQ** (`/faq`) — accordion FAQ
+
+### Session Lock Logic
+- After each session, `last_session_ended_at` is set in `user_profiles`
+- Session is locked for 7 days: `last_session_ended_at + 7 days > now()`
+- Lock enforced on Landing, Dashboard, and NextMoves pages
 
 ## Design System
 
@@ -81,6 +93,7 @@ artifacts-monorepo/
 - **Primary**: Terracotta `#C4622D`
 - **Sage**: `#7A9E87`
 - **Gold**: `#D4A843`
+- **Dark forest green**: `#2D6A4F` (Thriving dimension bars)
 - **Brown**: `#2C1810` (dark text)
 - **VoiceOrb states**: idle, speaking, listening, processing
 
@@ -88,44 +101,45 @@ artifacts-monorepo/
 
 ### Public (no auth)
 - `POST /api/transcribe` — audio → `{ text }` via Whisper
-- `POST /api/speak` — `{ text, voiceId? }` → mp3 via ElevenLabs (coach-specific voice)
+- `POST /api/speak` — `{ text, voiceId? }` → mp3 via ElevenLabs
 - `POST /api/chat` — `{ messages, systemPrompt }` → `{ response }` via Claude
 - `POST /api/extract-profile` — `{ conversationText }` → `{ profile }` via Claude
 - `POST /api/coach-sample` — `{ voiceId }` → mp3 sample for coach selection
 - `GET /api/health` — health check
-- `GET /api/admin/health` — checks if Supabase tables are set up
 
 ### Authenticated (requires Bearer JWT)
-- `GET/POST /api/profile` — user profile (upsert with consent, coach, warmup)
-- `GET /api/check-in` — unread check-in messages
-- `POST /api/sessions` — save coaching session
+- `GET/POST /api/profile` — user profile (upsert: firstName, lastName, coachId, voiceId, consent, warmupData)
+- `POST /api/sessions` — save session (sets last_session_ended_at)
 - `GET /api/sessions/latest` — most recent session
-- `GET /api/sessions` — all session history
-- `POST /api/dashboard-snapshot` — generate scorecard + narrative via Claude, save to Supabase
+- `GET /api/sessions` — all session summaries (id, session_number, created_at)
+- `POST /api/dashboard-snapshot` — generate scorecard + narrative via Claude
 - `GET /api/dashboard-snapshot/latest` — most recent snapshot
 - `GET /api/dashboard-snapshot/history` — snapshot version history
 - `GET/POST /api/assignments` — assignments list + create
+- `POST /api/assignments/bulk` — create multiple assignments at once (for commitment capture)
 - `PATCH /api/assignments/:id` — update status + reflection
-- `POST /api/resources` — AI-generated resource recommendations
+- `POST /api/resources` — AI-generated resource recommendations (profile + warmup_data context)
 
 ## Supabase Schema (5 tables)
 
-Run `supabase/migrations/001_initial.sql` in Supabase SQL Editor before using.
+Run `supabase/migrations/001_initial.sql` first, then `002_v31.sql` in Supabase SQL Editor.
 
-- `user_profiles` — coach_id, warmup_data, consent_acknowledged
-- `sessions` — transcript, profile_json, commitments
+- `user_profiles` — first_name, last_name, coach_id, coach_voice_id, warmup_data, consent_acknowledged, last_session_ended_at
+- `sessions` — transcript, profile_json, session_number
 - `dashboard_snapshots` — chapter_cards, portrait_stats, scorecard, narrative_blurb
-- `assignments` — title, description, type, status, reflection, resources
+- `assignments` — title, description, type, status, reflection
 - `check_in_messages` — between-session messages
 
-## Coach Voices (ElevenLabs)
+## Coach Voices V3.1 (ElevenLabs)
 
 | Coach | Voice ID | Style |
 |-------|----------|-------|
-| Maya  | EXAVITQu4vr4xnSDxMaL | Warm, direct, strength-based |
-| Carlos | VR6AewLTigWG4xSOukaG | Grounded, reflective, patient |
-| Aisha | MF3mGyEYCl7XYWbV9V6O | Curious, incisive, energising |
-| James | pNInz6obpgDQGcFmaJgB | Calm, structured, encouraging |
+| Maya  | XeomjLZoU5rr4yNIg16w | Warm, direct, strength-based |
+| Carlos | 1fz2mW1imKTf5Ryjk5su | Grounded, reflective, patient |
+| Aisha | zwbQ2XUiIlOKD6b3JWXd | Curious, incisive, energising |
+| James | ePEc9tlhrIO7VRkiOlQN | Calm, structured, encouraging |
+
+Legacy V3.0 voice IDs are kept in allowlists for backward compat.
 
 ## Environment Variables Required
 
@@ -135,12 +149,10 @@ Run `supabase/migrations/001_initial.sql` in Supabase SQL Editor before using.
 - `SUPABASE_URL` — Supabase project URL (frontend reads via Vite define)
 - `SUPABASE_ANON_KEY` — Supabase public key (frontend reads via Vite define)
 - `SUPABASE_SERVICE_ROLE_KEY` — Supabase admin key (server-side only)
-- `SUPABASE_DB_URL` — (optional) Supabase direct DB URL for auto-migration
 
 ## LocalStorage Keys
 
 - `tayo_profile` — TayoProfile JSON (cached locally for fallback)
-- `tayo_chat_history` — current session chat history
 - `tayo_coach_voice_id` — selected coach ElevenLabs voice ID
 - `tayo_coach_id` — selected coach ID (maya/carlos/aisha/james)
 - `tayo_warmup` — warmup data (music, youtube, media, photos)

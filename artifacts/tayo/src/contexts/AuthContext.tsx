@@ -2,12 +2,15 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
+const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  signUp: (email: string, password: string, firstName: string, lastName?: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   getToken: () => string | null;
   getTokenAsync: () => Promise<string | null>;
@@ -35,15 +38,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, firstName: string, lastName?: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return { error: error.message, needsConfirmation: false };
+
     if (data.session) {
       setSession(data.session);
       setUser(data.session.user);
+
+      // Save firstName and lastName to profile
+      try {
+        await fetch(`${BASE_URL}/api/profile`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${data.session.access_token}`,
+          },
+          body: JSON.stringify({
+            first_name: firstName.trim().slice(0, 100),
+            last_name: lastName ? lastName.trim().slice(0, 100) : undefined,
+          }),
+        });
+      } catch { /* non-fatal */ }
+
       return { error: null, needsConfirmation: false };
     }
-    // User created but email confirmation required — session is null
+
     return { error: null, needsConfirmation: true };
   };
 
@@ -56,10 +76,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   };
 
+  const signInWithGoogle = async () => {
+    const redirectTo = `${window.location.origin}${BASE_URL || ""}/`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    return { error: error?.message ?? null };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
+    localStorage.removeItem("tayo_profile");
+    localStorage.removeItem("tayo_chat_history");
+    localStorage.removeItem("tayo_plan");
+    localStorage.removeItem("tayo_coach_voice_id");
+    localStorage.removeItem("tayo_coach_id");
+    localStorage.removeItem("tayo_warmup");
   };
 
   const getToken = useCallback(() => session?.access_token ?? null, [session]);
@@ -71,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, getToken, getTokenAsync }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, signOut, getToken, getTokenAsync }}>
       {children}
     </AuthContext.Provider>
   );

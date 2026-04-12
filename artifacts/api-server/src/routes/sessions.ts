@@ -11,7 +11,7 @@ function sanitizeText(value: unknown, maxLen: number): string {
   return value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, maxLen).trim();
 }
 
-// POST /api/sessions — save a completed session
+// POST /api/sessions — save a completed session + set last_session_ended_at
 router.post("/sessions", requireAuth, async (req: Request, res: Response) => {
   try {
     const body = req.body && typeof req.body === "object" ? req.body : {};
@@ -28,6 +28,7 @@ router.post("/sessions", requireAuth, async (req: Request, res: Response) => {
       .maybeSingle();
 
     const sessionNumber = (existing?.session_number ?? 0) + 1;
+    const now = new Date().toISOString();
 
     const { data, error } = await supabase
       .from("sessions")
@@ -43,9 +44,17 @@ router.post("/sessions", requireAuth, async (req: Request, res: Response) => {
 
     if (error) throw error;
 
+    // Update user_profiles: save firstName and set last_session_ended_at
+    const firstName = typeof profileJson.firstName === "string" ? profileJson.firstName : null;
+    const profileUpdate: Record<string, unknown> = {
+      user_id: req.userId!,
+      last_session_ended_at: now,
+    };
+    if (firstName) profileUpdate.first_name = firstName;
+
     await supabase
       .from("user_profiles")
-      .upsert({ user_id: req.userId!, first_name: profileJson.firstName }, { onConflict: "user_id" });
+      .upsert(profileUpdate, { onConflict: "user_id" });
 
     res.json({ session: data });
   } catch (err) {
@@ -90,14 +99,14 @@ router.get("/sessions", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/dashboard-snapshot — save dashboard snapshot + generate scorecard
+// POST /api/dashboard-snapshot — save dashboard snapshot + generate scorecard + narrative
 router.post("/dashboard-snapshot", requireAuth, async (req: Request, res: Response) => {
   try {
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const profileJson = body.profile_json && typeof body.profile_json === "object" ? body.profile_json : {};
 
     const profileStr = JSON.stringify(profileJson).slice(0, 20000);
-    const firstName = typeof profileJson.firstName === "string" ? profileJson.firstName : "Friend";
+    const firstName = typeof profileJson.firstName === "string" ? profileJson.firstName : "you";
 
     // PRIVACY: Sends user's profile JSON to Claude to generate structured scorecard.
     const scorecardRes = await anthropic.messages.create({
@@ -111,14 +120,19 @@ Profile: ${profileStr}
 
 Return this exact structure:
 {
-  "purpose": "2-3 sentence purpose statement grounded in their actual values and themes",
-  "values": ["string (1-4 personally-termed values, e.g. 'Competition-Ready Vitality' not 'health')"],
-  "strengths": ["string (1-5 sharp strength bullets grounded in conversation)"],
-  "challenges": ["string (1-5 bullets framed as design problems not failures)"],
-  "focusAreas": ["string (1-5 areas with biggest gap between importance and thriving)"]
+  "purpose": "2-3 sentence purpose statement grounded in their actual values and themes — specific, not generic",
+  "values": ["string (3-5 evocative, personally-termed values — e.g. 'Sovereign Creativity' not just 'creativity')"],
+  "strengths": ["string — format exactly as: 'Strength name — one sentence explaining how this plays out in their life, like a personal strategic asset'"],
+  "challenges": ["string — framed as design problems, not failures (e.g. 'Balancing depth with pace — your instinct to think thoroughly before moving creates tension with the world's demand for speed')"],
+  "focusAreas": ["string — format: 'Dimension name — one sentence on why this matters most for them right now, specific to their story'"]
 }
 
-Rules: Be specific to this person. No generic coaching language. Use their own words where possible. If data is insufficient for a section, return an empty array for that field.`
+Rules:
+- Be deeply specific to this person. No generic coaching language.
+- Use their own words and themes where possible.
+- Strengths must follow the format: 'Name — explanation that reads like a personal strategic plan entry'
+- Focus areas must explain WHY it matters now, tied to their actual story
+- If data is insufficient for a section, return an empty array for that field.`
       }],
     });
 
@@ -133,7 +147,7 @@ Rules: Be specific to this person. No generic coaching language. Use their own w
       max_tokens: 400,
       messages: [{
         role: "user",
-        content: `Write a 5-8 sentence narrative portrait for ${firstName}'s coaching dashboard. Second person. Reference specific dimensions, events, values from this profile. Warm and specific. No generic language.
+        content: `Write a 5-8 sentence narrative portrait for ${firstName}'s coaching dashboard. Second person. Reference specific dimensions, events, values from this profile. Warm and specific. No generic language. No quantitative scores or numbers.
 
 Profile: ${profileStr}
 
@@ -190,6 +204,26 @@ router.get("/dashboard-snapshot/latest", requireAuth, async (req: Request, res: 
   } catch (err) {
     req.log.error({ err }, "Get snapshot error");
     res.status(500).json({ error: "Failed to load dashboard" });
+  }
+});
+
+// GET /api/dashboard-snapshot/:id — specific snapshot by ID
+router.get("/dashboard-snapshot/:id", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from("dashboard_snapshots")
+      .select("*")
+      .eq("id", id)
+      .eq("user_id", req.userId!)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) { res.status(404).json({ error: "Snapshot not found" }); return; }
+    res.json({ snapshot: data });
+  } catch (err) {
+    req.log.error({ err }, "Get snapshot by ID error");
+    res.status(500).json({ error: "Failed to load snapshot" });
   }
 });
 

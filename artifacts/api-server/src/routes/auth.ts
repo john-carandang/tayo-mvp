@@ -31,15 +31,31 @@ router.post("/profile", requireAuth, async (req: Request, res: Response) => {
   try {
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const firstName = sanitizeText(body.first_name, 100);
+    const lastName = sanitizeText(body.last_name, 100);
     const coachId = sanitizeText(body.coach_id, 50);
+    const coachVoiceId = sanitizeText(body.coach_voice_id, 50);
     const consentAcknowledged = body.consent_acknowledged === true;
     const warmupData = body.warmup_data && typeof body.warmup_data === "object" ? body.warmup_data : undefined;
+
+    const ALLOWED_VOICES = [
+      "XeomjLZoU5rr4yNIg16w", // Maya V3.1
+      "1fz2mW1imKTf5Ryjk5su", // Carlos V3.1
+      "zwbQ2XUiIlOKD6b3JWXd", // Aisha V3.1
+      "ePEc9tlhrIO7VRkiOlQN", // James V3.1
+      // Legacy V3.0 voice IDs (keep for existing users)
+      "EXAVITQu4vr4xnSDxMaL",
+      "VR6AewLTigWG4xSOukaG",
+      "MF3mGyEYCl7XYWbV9V6O",
+      "pNInz6obpgDQGcFmaJgB",
+    ];
 
     const upsertData: Record<string, unknown> = {
       user_id: req.userId!,
     };
     if (firstName) upsertData.first_name = firstName;
+    if (lastName) upsertData.last_name = lastName;
     if (coachId) upsertData.coach_id = coachId;
+    if (coachVoiceId && ALLOWED_VOICES.includes(coachVoiceId)) upsertData.coach_voice_id = coachVoiceId;
     if (consentAcknowledged) {
       upsertData.consent_acknowledged = true;
       upsertData.consent_timestamp = new Date().toISOString();

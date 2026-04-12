@@ -1,0 +1,298 @@
+Got it. Here's the full prompt:
+
+---
+
+**TAYO — V3.1 INCREMENTAL BUILD PROMPT**
+
+Do not rebuild from scratch. Apply these changes to the existing codebase in the order listed. Infrastructure first, then pages, then features, then UI fixes.
+
+---
+
+**PART 0 — BEFORE ANYTHING ELSE: BUG FIXES**
+
+Fix these before touching any new features:
+
+1. Dashboard build failure — find and fix the root error causing the dashboard to fail to load
+2. Session cuts off mid-conversation without graceful close — implement proper session end handling
+3. Console logs visible to users — remove all `console.log` debug output from the UI
+4. Navigation shows "Coaching Session" and "Strategic Plan" as top-level steps — remove both from the nav entirely
+5. Dashboard title shows "Friend's Dashboard" — replace with `[firstName]'s Dashboard` using the name from Supabase `user_profiles`
+
+---
+
+**PART 1 — SITE ARCHITECTURE**
+
+The app must function as a navigable multi-page website, not a single linear flow. Implement the following routes:
+
+```
+/ — Landing page (logged out: marketing; logged in: personalized welcome)
+/sign-up — Account creation
+/login — Sign in
+/faq — FAQ / About page
+/disclosures — ICF disclosures + consent
+/coach — Coach selection
+/warmup — Warm-up ritual
+/intake — Voice intake session
+/dashboard — 3-tab dashboard (Journey to Date, Who You Are Now, Your Strategic Plan)
+/next-moves — Standalone Next Moves page
+/profile — User profile portal (Past sessions, Resources library, Settings)
+```
+
+**Top navigation — logged out:** Logo left, "How it works" and "FAQ" center, "Sign up / Log in" button right (burnt orange).
+
+**Top navigation — logged in:** Logo left, "Dashboard", "Next Moves", "FAQ" center, user avatar + first name right (clicking opens dropdown: Profile, Settings, Sign out).
+
+---
+
+**PART 2 — LANDING PAGE**
+
+**Logged out state:**
+
+- Hero headline: "Cut through the noise. Focus on what truly matters."
+- Subheading: "Tayo is an AI coaching companion that helps you understand who you are, clarify your values and purpose, and build a life that reflects what matters most to you."
+- Disclaimer callout box: "Tayo is an AI coaching tool designed to support self-understanding and personal growth. It is not a human coach, therapist, or mental health service."
+- Primary CTA: "Begin your journey" → `/sign-up`
+- 3-step process cards below: Step 1 Voice Intake, Step 2 Your Dashboard, Step 3 Your Next Moves
+- Include 2–3 high-quality stock photo placeholders of BIPOC Millennials in warm, natural settings — label them `[BIPOC photo placeholder]` with a warm cream background fill so they render gracefully without actual images
+
+**Logged in — session locked state:**
+
+- Headline: "Welcome back, [firstName]."
+- Subheading: "Session [N] is available in [X] days. Keep working through your next moves in the meantime."
+- Primary CTA: greyed-out locked button labeled "Session available [date]"
+- Secondary CTA: "View my dashboard"
+
+**Logged in — session ready state:**
+
+- Headline: "Your next session is ready, [firstName]."
+- Subheading: "It's been 7 days since your last session with [coachName]. Your next 25–30 minute conversation is waiting."
+- Primary CTA: "Start session [N] with [coachName]"
+- Secondary CTA: "View my dashboard"
+
+**Session availability logic:**
+
+Store `last_session_ended_at` timestamp in Supabase `user_profiles` when each session ends. A new session is unlocked when `NOW() >= last_session_ended_at + INTERVAL '7 days'`. First-time users (no prior sessions) are always unlocked. This lock applies to everyone regardless of tier for now.
+
+---
+
+**PART 3 — SIGN UP / LOGIN**
+
+Standard industry pattern:
+
+- Title: "Welcome to Tayo"
+- "Continue with Google" button (Google OAuth via Supabase Auth)
+- "Continue with Email" button
+- Divider: "or"
+- Fields: First name, Last name, Email, Password
+- Primary CTA: "Create account"
+- Link below: "Already have an account? Sign in"
+
+Login page mirrors this without the name fields.
+
+Store `first_name` and `last_name` in Supabase `user_profiles` on account creation. Use `first_name` everywhere the app addresses the user.
+
+---
+
+**PART 4 — FAQ PAGE (`/faq`)**
+
+A clean readable page covering:
+
+- What is Tayo? (AI coaching companion for self-understanding and purpose clarity)
+- What is Tayo not? (Not a human coach, not a therapist, not a mental health service)
+- How does Tayo protect my data? (Stored securely, never sold, deletable on request)
+- Is Tayo's coaching approach credible? (Aligned with ICF Core Competencies 2025 and ICF AI Coaching Standards. Find a human ICF coach at coachingfederation.org/get-coaching/)
+- How often can I have a session? (One session per 7 days — giving you time to apply insights before the next conversation)
+- What happens between sessions? (Assignments, resources, and check-ins in Your Next Moves)
+
+---
+
+**PART 5 — DISCLOSURES (SIMPLIFIED)**
+
+Replace the existing checkbox list with two paragraphs and a single button.
+
+Title: "Before we begin"
+Subtitle: "Please read the following. Your honesty with yourself starts here."
+
+Paragraph 1 (card): "What Tayo is — and isn't. Tayo is an AI coaching tool designed to support self-understanding and personal growth. It is not a human coach, a therapist, or a mental health service. If you are experiencing a mental health crisis, please contact a professional immediately. Tayo's coaching approach is aligned with ICF Core Competencies (2025) and ICF AI Coaching Standards — it is not a substitute for working with a credentialed human coach. Find one at coachingfederation.org/get-coaching/"
+
+Paragraph 2 (card): "How your data is used. Your coaching conversations and personal data are stored securely and used only to personalize your Tayo experience. They are never sold to third parties. You may request deletion of your data at any time, and you may end your relationship with Tayo at any time for any reason."
+
+Single CTA: "Acknowledge & continue"
+
+On click: log `consent_acknowledged: true` and `consent_timestamp: NOW()` to Supabase `user_profiles`. Navigate to `/coach`.
+
+---
+
+**PART 6 — COACH SELECTION**
+
+2×2 grid layout. Each card contains: AI-generated portrait placeholder (warm illustrated style, label with coach name), coach name, personality tags in burnt orange, 2-sentence description, "Hear my voice" button.
+
+Coach roster and ElevenLabs voice IDs:
+
+| Coach | Tags | Voice ID |
+|---|---|---|
+| Maya | Warm, direct, strength-based | `XeomjLZoU5rr4yNIg16w` |
+| Carlos | Grounded, reflective, patient | `1fz2mW1imKTf5Ryjk5su` |
+| Aisha | Curious, incisive, energising | `zwbQ2XUiIlOKD6b3JWXd` |
+| James | Calm, structured, encouraging | `ePEc9tlhrIO7VRkiOlQN` |
+
+"Hear my voice" button plays a 2–3 sentence ElevenLabs audio sample for that coach using their voice ID. Sample text: "Hi, I'm [name]. I'm here to help you understand yourself more clearly — your story, your values, and what matters most to you. I'm looking forward to our conversation."
+
+Store selected `coach_id` and `coach_voice_id` in Supabase `user_profiles`. Coach persists across all sessions.
+
+CTA: "Select a coach to continue" — disabled until a coach is selected. On click → `/warmup`.
+
+---
+
+**PART 7 — WARM-UP PAGE**
+
+Voice guidance from the selected coach plays automatically on page load — a short 2–3 sentence ElevenLabs audio introduction using the selected coach's voice:
+
+"Hey [firstName] — before we dive in, I'd love to get a sense of who you are right now. I'll ask a few quick questions. Everything here is optional, but the more you share, the richer our first conversation will be."
+
+Form fields below (all optional):
+
+1. "4 photos that represent you right now" — drag and drop zone, click to browse files, camera roll access on mobile, or paste a URL. Accept jpg/png/webp/gif. Store uploaded images in Supabase Storage.
+2. "What's on repeat lately?" — single text field. Placeholder: "e.g. Kendrick Lamar, SZA, or 'Not Like Us' has been on repeat for a month"
+3. "A YouTube video or channel you keep coming back to" — single text field
+4. "A book, show, or podcast on your mind" — single text field
+
+Store all warm-up data in `user_profiles.warmup_data` as JSON.
+
+CTA: "Begin my first session"
+Skip link below: "Skip and go straight to the session"
+
+Both → `/intake`
+
+Include 1–2 BIPOC Millennial photo placeholders on this page (warm, natural, aspirational).
+
+---
+
+**PART 8 — VOICE INTAKE SESSION**
+
+**Opening behavior:**
+
+Session 1: Coach greets user warmly by first name, references one warm-up detail if available ("I saw you mentioned you've been listening to Kendrick Lamar — I'm curious what draws you to that right now"), then asks: "What's top of mind for you today?"
+
+Session 2+: Coach references one key theme or commitment from the last session as a warm bridge, then asks: "What's top of mind for you today?"
+
+**Session duration:**
+
+Display a running timer on screen. At 28 minutes, the coach naturally begins closing: "We're coming up on our time together — before we wrap up, I want to make sure we leave you with something to work with."
+
+**Session end — assignment commitment:**
+
+Before closing, the coach asks the user to define their own assignments: "Based on everything we've talked about today, what are 1 or 2 things you feel ready to commit to before we speak again? They could be daily habits, one-off things to try, or just something to reflect on." Listen to the user's response and confirm their commitments back: "So you're committing to [X] and [Y] — I'll add those to your Next Moves." Log confirmed commitments to Supabase `assignments` table.
+
+Then the coach closes: "Your dashboard is being updated with your story, who you are now, and where you're heading. These are very much a work in progress — they'll evolve and deepen as we continue our sessions together. I'll see you in a week."
+
+After this: set `last_session_ended_at` to `NOW()` in `user_profiles`. Extract profile JSON from transcript. Navigate to `/dashboard`.
+
+**Page includes** 1 BIPOC Millennial photo placeholder (warm, subtle, in the background or alongside the orb).
+
+---
+
+**PART 9 — DASHBOARD**
+
+Title: "[firstName]'s Dashboard"
+
+Subtitle: "Your evolving portrait — it will deepen with each session." + "View history" link → shows previous dashboard snapshots from Supabase.
+
+Add a "Begin coaching session" CTA button at the bottom of the dashboard — visible when session is unlocked, locked/greyed when within 7-day window.
+
+**3 tabs:**
+
+**Tab A — Journey to Date (Chapter Cards — horizontal scroll)**
+
+Horizontal scrollable row of chapter cards. Each card: chapter title (bold), mood tag with color-coded dot (Formative = blue, Challenging = red, Breakthrough = green, Transitional = amber), 2-sentence description, life period label. Cards connected by a thin horizontal line. Retro warm aesthetic.
+
+Placeholder if no data: "Your journey will appear here after your first session."
+
+**Tab B — Who You Are Now (Portrait Stats Block)**
+
+Top: Avatar/initials circle + first name + purpose statement.
+
+Each of the 5 dimensions (Mental & Emotional, Career, Physical, Social & Relationships, Financial):
+- Dimension name (bold)
+- One-line personal description from conversation
+- Horizontal fill bar: dark green = Thriving, light green = Building, yellow = Needs Attention
+- Word label right-aligned: "Thriving" / "Building" / "Needs Attention"
+
+Remove the top blurb with the user's name and purpose statement — replace with a single brief sentence explaining what the chart shows: "How you're doing across the dimensions that matter to you."
+
+No numerical scores anywhere on this tab.
+
+**Tab C — Your Strategic Plan (Scorecard)**
+
+Sections appear only if sufficient session data exists: Purpose (2–3 sentence prose), Core Values (0–5 evocative bullets), Strengths (0–5 bullets — each with a brief phrase explaining the strength, styled like a personal strategic plan: "Strategic sense-making — you turn complex experiences into clear narrative and direction"), Strategic Challenges (0–5 bullets framed as design problems), Focus Areas (0–5 bullets — no scores, just the dimension name and why it matters now).
+
+Remove all numerical scores from Focus Areas.
+
+Voice orb button at top: "Listen to your story" — plays ElevenLabs narration using selected coach's voice.
+
+**Persistent narrative blurb** below all tabs: 5–8 sentences in second person. No quantitative scores referenced. Labeled "Your evolving portrait." Voice orb plays narration of this blurb.
+
+---
+
+**PART 10 — NEXT MOVES (standalone `/next-moves` page)**
+
+Remove "Your Next Moves" tab from the dashboard entirely. It is now a standalone page.
+
+**Session banner (locked):** Amber-tinted card. "Your next session — Session [N] with [coachName]. Available [date]. [X] days away." Countdown updates in real time using `last_session_ended_at + 7 days`.
+
+**Session banner (unlocked):** Standard card. "Session [N] with [coachName] is ready. Start when you have the space for it." CTA: "Start session [N]".
+
+**Assignments section:** Cards with type badge (Daily habit / One-off task / Reflection), title, description, checkbox "Mark complete — share what you learned." On check: open a brief text input for the user's reflection. Save to `assignments.reflection` in Supabase.
+
+**Resources section:** 2×2 grid of resource cards. Each has: type badge (PODCAST / BOOK / ARTICLE / YOUTUBE), title, checkbox "Read" / "Listened" / "Watched." Resources generated by Claude after each session using the user's profile and warm-up data. Only use real, verifiable resources from credible providers: Brené Brown, James Clear, Mel Robbins, Adam Grant, Harvard Business Review, Diary of a CEO, Chris Williamson, Michelle Obama, Glennon Doyle, Tim Ferriss, Esther Perel. All resource URLs must point to real pages — verify each URL is resolvable before inserting it. Never generate a fictional URL.
+
+Resources informed by warm-up data: pass the user's music, YouTube, and book/show preferences to Claude alongside the session profile when generating resources — so recommendations feel culturally and personally relevant.
+
+---
+
+**PART 11 — PROFILE PORTAL (`/profile`)**
+
+Sidebar navigation: My Dashboard, Past Sessions, Next Moves, My Resources, Settings, Sign out.
+
+**Past Sessions:** List of all sessions with date, duration, coach name, and "View dashboard snapshot" link → loads that version of the dashboard from `dashboard_snapshots`.
+
+**My Resources:** Full library of every resource ever recommended, organized by type (Books, Podcasts, Articles & Videos). Each item has a checkbox (read/watched/listened). Checkbox state saved to Supabase.
+
+**Settings:** First name, last name, email (editable). "Change coach" option. "Delete my account and all data" (with confirmation modal).
+
+---
+
+**PART 12 — SECURITY**
+
+- All API calls through Express backend — never from frontend
+- All Supabase queries filtered by authenticated `user_id`
+- No PII in console logs or URL parameters
+- API keys in Replit Secrets only
+- HTTPS only
+
+---
+
+**DEFINITION OF DONE**
+
+1. Navigating to `/` shows the correct logged-out landing page with BIPOC imagery placeholders and "Sign up / Log in" in top right
+2. Logged-in users see personalized welcome with correct session lock/unlock state
+3. Sign up collects first name, last name, email; stores to Supabase; supports Google OAuth
+4. Disclosures page shows two paragraphs, single acknowledge button, logs consent to Supabase
+5. Coach selection shows 2×2 grid; "Hear my voice" plays audio sample; selection stored in Supabase
+6. Warm-up shows voice guide from selected coach; photo upload (drag/drop + file browse) works; data stored in Supabase
+7. Session 1 references warm-up data in opening; session 2+ references prior theme
+8. Session ends with Tayo asking user to commit to their own assignments; commitments logged to Supabase
+9. Session close message tells user their dashboard is a work in progress that will evolve
+10. `last_session_ended_at` set on session end; 7-day lock enforced on landing page and Next Moves
+11. Dashboard shows correct user name, 3 tabs render correctly, "Begin coaching session" CTA present
+12. Journey to Date shows horizontal scroll Chapter Cards (no snake layout)
+13. Who You Are Now uses dark green / light green / yellow color scheme; no scores; no top blurb
+14. Strategic Plan strengths have explanatory phrases; focus areas have no scores
+15. Next Moves is a standalone page at `/next-moves`; resource URLs are real and working
+16. Resources informed by warm-up data (music, YouTube, books/shows)
+17. Profile portal shows past sessions with snapshot links and full resource library with checkboxes
+18. No "Coaching Session" or "Strategic Plan" in top navigation
+19. All 5 original bugs resolved
+20. No markdown symbols in any AI output
+
+After completing, take screenshots of: landing page (logged out), landing page (logged in — locked), landing page (logged in — unlocked), disclosures, coach selection, warmup, dashboard Tab A, Tab B, Tab C, Next Moves, and Profile portal. Confirm what was built, files changed, and any known limitations.

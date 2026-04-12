@@ -97,10 +97,15 @@ router.post("/speak", async (req: Request, res: Response) => {
     }
 
     const ALLOWED_VOICES = [
-      "EXAVITQu4vr4xnSDxMaL", // Maya
-      "VR6AewLTigWG4xSOukaG", // Carlos
-      "MF3mGyEYCl7XYWbV9V6O", // Aisha
-      "pNInz6obpgDQGcFmaJgB", // James
+      "XeomjLZoU5rr4yNIg16w", // Maya V3.1
+      "1fz2mW1imKTf5Ryjk5su", // Carlos V3.1
+      "zwbQ2XUiIlOKD6b3JWXd", // Aisha V3.1
+      "ePEc9tlhrIO7VRkiOlQN", // James V3.1
+      // Legacy V3.0 voice IDs (backward compat)
+      "EXAVITQu4vr4xnSDxMaL",
+      "VR6AewLTigWG4xSOukaG",
+      "MF3mGyEYCl7XYWbV9V6O",
+      "pNInz6obpgDQGcFmaJgB",
     ];
     const requestedVoice = sanitizeText(req.body?.voiceId, 50);
     const voiceId = (requestedVoice && ALLOWED_VOICES.includes(requestedVoice))
