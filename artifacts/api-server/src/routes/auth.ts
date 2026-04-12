@@ -37,7 +37,6 @@ router.post("/profile", requireAuth, async (req: Request, res: Response) => {
 
     const upsertData: Record<string, unknown> = {
       user_id: req.userId!,
-      updated_at: new Date().toISOString(),
     };
     if (firstName) upsertData.first_name = firstName;
     if (coachId) upsertData.coach_id = coachId;

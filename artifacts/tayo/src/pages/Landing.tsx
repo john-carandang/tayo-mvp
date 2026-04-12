@@ -15,7 +15,7 @@ export default function Landing() {
   const [, setLocation] = useLocation();
   const { user, signIn, signUp, loading } = useAuth();
 
-  const [mode, setMode] = useState<"none" | "signin" | "signup">("none");
+  const [mode, setMode] = useState<"none" | "signin" | "signup" | "confirm">("none");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,13 +31,17 @@ export default function Landing() {
     e.preventDefault();
     setAuthError("");
     setAuthLoading(true);
-    const fn = mode === "signup" ? signUp : signIn;
-    const { error } = await fn(email.trim(), password);
-    setAuthLoading(false);
-    if (error) {
-      setAuthError(error);
+    if (mode === "signup") {
+      const { error, needsConfirmation } = await signUp(email.trim(), password);
+      setAuthLoading(false);
+      if (error) { setAuthError(error); }
+      else if (needsConfirmation) { setMode("confirm"); }
+      else { setLocation("/disclosures"); }
     } else {
-      setLocation("/disclosures");
+      const { error } = await signIn(email.trim(), password);
+      setAuthLoading(false);
+      if (error) { setAuthError(error); }
+      else { setLocation("/disclosures"); }
     }
   };
 
@@ -48,11 +52,11 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <span className="font-display text-2xl font-semibold" style={{ color: "#2C1810" }}>Tayo</span>
           <button
-            onClick={() => setMode(mode === "signin" ? "none" : "signin")}
+            onClick={() => { setMode(mode === "none" ? "signin" : "none"); setAuthError(""); }}
             className="text-sm font-medium transition-colors"
             style={{ color: "#7A9E87" }}
           >
-            {mode === "signin" ? "Cancel" : "Sign in"}
+            {mode === "none" ? "Sign in" : mode === "confirm" ? "Back" : "Cancel"}
           </button>
         </div>
       </header>
@@ -85,9 +89,42 @@ export default function Landing() {
         </motion.div>
 
         {/* Auth Form */}
-        <AnimatePresence>
-          {mode !== "none" && (
+        <AnimatePresence mode="wait">
+          {mode === "confirm" && (
             <motion.div
+              key="confirm"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="max-w-sm mx-auto mb-16 overflow-hidden"
+            >
+              <div className="rounded-2xl p-8 shadow-lg text-center" style={{ backgroundColor: "#FFFDF8", border: "1px solid rgba(44,24,16,0.1)" }}>
+                <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: "rgba(122,158,135,0.15)" }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="#7A9E87" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <h2 className="font-display text-xl mb-3" style={{ color: "#2C1810" }}>Check your email</h2>
+                <p className="text-sm leading-relaxed mb-4" style={{ color: "#746A5A" }}>
+                  We've sent a confirmation link to <span className="font-medium" style={{ color: "#2C1810" }}>{email}</span>. Click it to confirm your account, then come back here to sign in.
+                </p>
+                <p className="text-xs mb-6" style={{ color: "#9B8E84" }}>
+                  Didn't receive it? Check your spam folder. It usually arrives within a minute.
+                </p>
+                <button
+                  onClick={() => { setMode("signin"); setAuthError(""); }}
+                  className="w-full py-3 rounded-xl font-semibold text-sm"
+                  style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
+                >
+                  I've confirmed — sign me in
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {(mode === "signin" || mode === "signup") && (
+            <motion.div
+              key="form"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}

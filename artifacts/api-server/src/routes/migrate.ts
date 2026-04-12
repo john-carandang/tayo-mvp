@@ -49,6 +49,48 @@ router.post("/admin/migrate", async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/admin/test-user — create an auto-confirmed test user (dev only)
+// Used by e2e tests to bypass email confirmation. NOT available in production.
+router.post("/admin/test-user", async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === "production") {
+    res.status(403).json({ error: "Not available in production" });
+    return;
+  }
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const email = typeof body.email === "string" ? body.email.slice(0, 200) : "";
+  const password = typeof body.password === "string" ? body.password.slice(0, 200) : "";
+  if (!email || !password) { res.status(400).json({ error: "email and password required" }); return; }
+
+  try {
+    const { supabase } = await import("../lib/supabase.js");
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+
+    if (error) {
+      if (error.message.toLowerCase().includes("already been registered") || error.message.toLowerCase().includes("already registered")) {
+        // User exists — find them by email and update their password
+        const { data: list } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+        const existing = list?.users?.find((u: { email?: string }) => u.email === email);
+        if (existing) {
+          await supabase.auth.admin.updateUserById(existing.id, { password, email_confirm: true });
+          res.json({ userId: existing.id, email, message: "Test user already exists — password reset" });
+          return;
+        }
+      }
+      res.status(400).json({ error: error.message });
+      return;
+    }
+
+    res.json({ userId: data.user.id, email, message: "Test user created and confirmed" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: message });
+  }
+});
+
 // GET /api/admin/health — check if tables are set up
 router.get("/admin/health", async (req: Request, res: Response) => {
   try {

@@ -295,13 +295,13 @@ function NextMoves({
   const [loadingResources, setLoadingResources] = useState(false);
 
   useEffect(() => {
-    if (!profile || resources.length > 0) return;
+    if (!profile || !token || resources.length > 0) return;
     const fetchResources = async () => {
       setLoadingResources(true);
       try {
         const res = await fetch(`${BASE_URL}/api/resources`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ profile }),
         });
         const data = await res.json();
@@ -310,7 +310,7 @@ function NextMoves({
       setLoadingResources(false);
     };
     fetchResources();
-  }, [profile]);
+  }, [profile, token]);
 
   const markComplete = async (id: string) => {
     if (!token) return;
@@ -482,7 +482,7 @@ function ResourceSection({ resources, loading }: { resources: Resource[]; loadin
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { profile, isHydrated } = useTayoProfile();
-  const { getToken } = useAuth();
+  const { getToken, getTokenAsync } = useAuth();
 
   const [activeTab, setActiveTab] = useState<Tab>("journey");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -492,30 +492,33 @@ export default function Dashboard() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [snapshotHistory, setSnapshotHistory] = useState<{ id: string; snapshot_version: number; created_at: string }[]>([]);
+  const [remoteFirstName, setRemoteFirstName] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const token = getToken();
 
   useEffect(() => {
-    if (isHydrated && !profile) setLocation("/");
-  }, [isHydrated, profile, setLocation]);
-
-  useEffect(() => {
-    if (!token) return;
     const load = async () => {
       setSnapshotLoading(true);
       try {
-        const [snapRes, asgRes] = await Promise.all([
-          fetch(`${BASE_URL}/api/dashboard-snapshot/latest`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${BASE_URL}/api/assignments`, { headers: { Authorization: `Bearer ${token}` } }),
+        const tok = await getTokenAsync();
+        if (!tok) { setSnapshotLoading(false); return; }
+        const [snapRes, asgRes, profileRes] = await Promise.all([
+          fetch(`${BASE_URL}/api/dashboard-snapshot/latest`, { headers: { Authorization: `Bearer ${tok}` } }),
+          fetch(`${BASE_URL}/api/assignments`, { headers: { Authorization: `Bearer ${tok}` } }),
+          fetch(`${BASE_URL}/api/profile`, { headers: { Authorization: `Bearer ${tok}` } }),
         ]);
         if (snapRes.ok) { const d = await snapRes.json(); if (d.snapshot) setSnapshot(d.snapshot); }
         if (asgRes.ok) { const d = await asgRes.json(); setAssignments(d.assignments ?? []); }
-      } catch { /* fallback to localStorage */ }
+        if (profileRes.ok) {
+          const d = await profileRes.json();
+          if (d.profile?.first_name) setRemoteFirstName(d.profile.first_name);
+        }
+      } catch { /* silent */ }
       setSnapshotLoading(false);
     };
     load();
-  }, [token]);
+  }, [getTokenAsync]);
 
   const loadHistory = async () => {
     if (!token) return;
@@ -578,14 +581,19 @@ export default function Dashboard() {
     }
   }, [snapshot, isPlaying]);
 
-  if (!isHydrated || !profile) return null;
+  if (!isHydrated) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F5F0E8" }}>
+      <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+    </div>
+  );
 
+  const firstName = profile?.firstName || remoteFirstName || "";
   const displayData = {
-    firstName: snapshot ? (profile.firstName) : profile.firstName,
-    events: snapshot ? (snapshot.chapter_cards ?? []) : (profile.lifeEvents ?? []),
-    dimensions: snapshot ? (snapshot.portrait_stats ?? []) : (profile.dimensions ?? []),
+    firstName,
+    events: snapshot ? (snapshot.chapter_cards ?? []) : (profile?.lifeEvents ?? []),
+    dimensions: snapshot ? (snapshot.portrait_stats ?? []) : (profile?.dimensions ?? []),
     scorecard: snapshot?.scorecard ?? null,
-    narrative: snapshot?.narrative_blurb ?? profile.overallNarrative ?? null,
+    narrative: snapshot?.narrative_blurb ?? profile?.overallNarrative ?? null,
     purpose: snapshot?.scorecard?.purpose,
   };
 
@@ -597,7 +605,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <StepLayout step={2} title={`${displayData.firstName}'s Dashboard`}>
+    <StepLayout step={2} title={displayData.firstName ? `${displayData.firstName}'s Dashboard` : "Your Dashboard"}>
       <div className="space-y-6">
 
         {/* Evolving portrait banner */}

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
@@ -6,10 +6,11 @@ interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   getToken: () => string | null;
+  getTokenAsync: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -35,23 +36,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error?.message ?? null };
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return { error: error.message, needsConfirmation: false };
+    if (data.session) {
+      setSession(data.session);
+      setUser(data.session.user);
+      return { error: null, needsConfirmation: false };
+    }
+    // User created but email confirmation required — session is null
+    return { error: null, needsConfirmation: true };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error && data.session) {
+      setSession(data.session);
+      setUser(data.session.user);
+    }
     return { error: error?.message ?? null };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
   };
 
-  const getToken = () => session?.access_token ?? null;
+  const getToken = useCallback(() => session?.access_token ?? null, [session]);
+
+  const getTokenAsync = useCallback(async (): Promise<string | null> => {
+    if (session?.access_token) return session.access_token;
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  }, [session]);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, getToken }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut, getToken, getTokenAsync }}>
       {children}
     </AuthContext.Provider>
   );

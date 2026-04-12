@@ -118,7 +118,7 @@ export default function Chat() {
   const coachVoiceId = localStorage.getItem("tayo_coach_voice_id") || undefined;
 
   useEffect(() => {
-    if (isHydrated && !profile) setLocation("/");
+    if (isHydrated && !profile) setLocation("/intake");
   }, [isHydrated, profile, setLocation]);
 
   useEffect(() => {
