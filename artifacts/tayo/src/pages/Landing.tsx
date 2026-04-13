@@ -271,13 +271,8 @@ export default function Landing() {
               >
                 {/* Photo placeholder */}
                 <div
-                  className="w-full flex items-center justify-center"
                   style={{ height: 140, backgroundColor: person.bg, borderBottom: `1px dashed ${person.border}` }}
-                >
-                  <p className="text-xs text-center px-2" style={{ color: person.border, fontStyle: "italic" }}>
-                    [BIPOC photo placeholder]
-                  </p>
-                </div>
+                />
                 <div className="p-4 text-center">
                   <p className="text-xs leading-relaxed" style={{ color: "#746A5A", fontStyle: "italic" }}>
                     {person.caption}
