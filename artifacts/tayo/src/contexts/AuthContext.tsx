@@ -77,10 +77,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    const redirectTo = `${window.location.origin}${BASE_URL || ""}/`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo },
+      options: {
+        redirectTo: "https://tayo-assets--johnccarandang.replit.app",
+      },
     });
     return { error: error?.message ?? null };
   };
