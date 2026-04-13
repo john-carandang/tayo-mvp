@@ -107,6 +107,20 @@ export default function Warmup() {
           </p>
         </div>
 
+        {/* Hero image placeholder */}
+        <div
+          className="w-full rounded-2xl mb-8 flex items-center justify-center"
+          style={{
+            height: 160,
+            backgroundColor: "rgba(122,158,135,0.08)",
+            border: "1.5px dashed rgba(122,158,135,0.3)",
+          }}
+        >
+          <p className="text-xs text-center px-6" style={{ color: "rgba(122,158,135,0.6)", fontStyle: "italic" }}>
+            [BIPOC photo placeholder — warm, candid, reflective moment]
+          </p>
+        </div>
+
         <div className="space-y-5 mb-10">
           {/* Photos */}
           <motion.div

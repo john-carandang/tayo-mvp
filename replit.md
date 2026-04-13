@@ -37,10 +37,10 @@ artifacts-monorepo/
 │   │       │   ├── Disclosures.tsx  # 2-paragraph ICF consent (simplified)
 │   │       │   ├── CoachSelect.tsx  # 4 coaches + voice preview (V3.1 voice IDs)
 │   │       │   ├── Warmup.tsx       # Photos, music, YouTube, media + voice guidance on load
-│   │       │   ├── Intake.tsx       # Voice intake (28-min timer, assignment commitment capture, session 1 vs 2+)
-│   │       │   ├── Dashboard.tsx    # 3-tab dashboard (Journey, Portrait, Strategic Plan) + session lock CTA
-│   │       │   ├── NextMoves.tsx    # Standalone Next Moves page (assignments + resources + session banner)
-│   │       │   └── Profile.tsx      # Profile portal (Overview, Past Sessions, Settings tabs)
+│   │       │   ├── Intake.tsx       # Voice intake: loads firstName from profile, coach greets by name, fixed close state machine (turn 0=ask, turn 1=commit+confirm+navigate), corrected closing message
+│   │       │   ├── Dashboard.tsx    # 3-tab dashboard (Journey, Portrait, Strategic Plan) + session lock CTA; portrait colors #1B5E20/#81C784/#F9A825; narrative voice listen button; stripNumbers() on narrative
+│   │       │   ├── NextMoves.tsx    # Standalone Next Moves page (assignments + resources + session banner); persists resources to localStorage tayo_resources
+│   │       │   └── Profile.tsx      # Profile portal (Overview, Past Sessions, My Resources, Settings tabs); resources library with checkboxes; past sessions with snapshot expansion
 │   │       ├── components/
 │   │       │   ├── layout/Navbar.tsx      # Sticky navbar (logged-in/out states)
 │   │       │   ├── layout/StepLayout.tsx  # Onboarding step wrapper

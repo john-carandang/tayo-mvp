@@ -248,7 +248,7 @@ export default function Landing() {
           <p className="text-xs mt-4" style={{ color: "#9B8E84" }}>Free to get started · No credit card required</p>
         </motion.section>
 
-        {/* Portrait grid — BIPOC representation placeholder */}
+        {/* Portrait grid — BIPOC photo placeholders + testimonials */}
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -257,27 +257,33 @@ export default function Landing() {
         >
           <div className="grid grid-cols-3 gap-3 md:gap-4">
             {[
-              { initials: "A.M.", bg: "rgba(196,98,45,0.12)", color: "#C4622D", caption: "\"I finally understand why I keep getting in my own way.\"" },
-              { initials: "J.O.", bg: "rgba(122,158,135,0.15)", color: "#7A9E87", caption: "\"My dashboard showed me a pattern I'd never seen before.\"" },
-              { initials: "S.K.", bg: "rgba(212,168,67,0.12)", color: "#D4A843", caption: "\"The session felt more real than years of journaling.\"" },
+              { bg: "rgba(196,98,45,0.09)", border: "rgba(196,98,45,0.2)", caption: "\"I finally understand why I keep getting in my own way.\"", name: "A.M." },
+              { bg: "rgba(122,158,135,0.1)", border: "rgba(122,158,135,0.25)", caption: "\"My dashboard showed me a pattern I'd never seen before.\"", name: "J.O." },
+              { bg: "rgba(212,168,67,0.09)", border: "rgba(212,168,67,0.22)", caption: "\"The session felt more real than years of journaling.\"", name: "S.K." },
             ].map((person, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + i * 0.08 }}
-                className="rounded-2xl p-6 text-center"
+                className="rounded-2xl overflow-hidden"
                 style={{ backgroundColor: "#FFFDF8", border: "1px solid rgba(44,24,16,0.08)" }}
               >
+                {/* Photo placeholder */}
                 <div
-                  className="w-14 h-14 rounded-full flex items-center justify-center font-display font-bold text-sm mx-auto mb-4"
-                  style={{ backgroundColor: person.bg, color: person.color }}
+                  className="w-full flex items-center justify-center"
+                  style={{ height: 140, backgroundColor: person.bg, borderBottom: `1px dashed ${person.border}` }}
                 >
-                  {person.initials}
+                  <p className="text-xs text-center px-2" style={{ color: person.border, fontStyle: "italic" }}>
+                    [BIPOC photo placeholder]
+                  </p>
                 </div>
-                <p className="text-xs leading-relaxed" style={{ color: "#746A5A", fontStyle: "italic" }}>
-                  {person.caption}
-                </p>
+                <div className="p-4 text-center">
+                  <p className="text-xs leading-relaxed" style={{ color: "#746A5A", fontStyle: "italic" }}>
+                    {person.caption}
+                  </p>
+                  <p className="text-xs mt-1 font-medium" style={{ color: "#9B8E84" }}>{person.name}</p>
+                </div>
               </motion.div>
             ))}
           </div>

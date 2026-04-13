@@ -5,7 +5,7 @@ import { VoiceOrb, type OrbState } from "@/components/ui/VoiceOrb";
 import { useTayoProfile, type TayoDimension, type TayoLifeEvent } from "@/hooks/use-tayo-state";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Circle, Clock, History, Lock, ChevronRight } from "lucide-react";
+import { CheckCircle2, Circle, Clock, History, Lock, ChevronRight, Headphones } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
@@ -27,16 +27,6 @@ interface Snapshot {
   created_at: string;
 }
 
-interface Assignment {
-  id: string;
-  title: string;
-  description: string;
-  type: "daily_habit" | "one_off_task" | "reflection";
-  due_date: string | null;
-  status: "pending" | "complete" | "skipped";
-  reflection: string | null;
-}
-
 const MOOD_COLORS: Record<string, { bg: string; dot: string; label: string }> = {
   peak:          { bg: "rgba(122,158,135,0.15)", dot: "#7A9E87", label: "Breakthrough" },
   valley:        { bg: "rgba(196,98,45,0.1)",    dot: "#C4622D", label: "Challenging" },
@@ -44,11 +34,11 @@ const MOOD_COLORS: Record<string, { bg: string; dot: string; label: string }> = 
   stable:        { bg: "rgba(91,127,166,0.1)",   dot: "#5B7FA6", label: "Formative" },
 };
 
-// V3.1 portrait colors: dark green = Thriving, light/sage green = Building, yellow = Needs Attention
+// Portrait colors: dark forest green = Thriving, light green = Building, amber yellow = Needs Attention
 function thriveColor(thriving: number) {
-  if (thriving >= 7) return "#2D6A4F";
-  if (thriving >= 4) return "#7A9E87";
-  return "#D4A843";
+  if (thriving >= 7) return "#1B5E20";
+  if (thriving >= 4) return "#81C784";
+  return "#F9A825";
 }
 function thriveLabel(thriving: number) {
   if (thriving >= 7) return "Thriving";
@@ -61,7 +51,20 @@ function thriveWidth(thriving: number) {
   return "25%";
 }
 
-// ─── Tab A: Chapter Cards ─────────────────────────────────────────────────────
+// Strip quantitative scores/numbers from narrative text
+function stripNumbers(text: string): string {
+  return text
+    .replace(/\b\d+\s*(?:out of|\/)\s*\d+\b/gi, "")
+    .replace(/\bsits?\s+at\s+(?:only\s+)?(?:a\s+)?\d+/gi, "")
+    .replace(/\bscores?\s+(?:a\s+)?\d+/gi, "")
+    .replace(/\b\d+%\b/g, "")
+    .replace(/\b\d+(?:\.\d+)?\s*(?:points?)\b/gi, "")
+    .replace(/\(\s*\d+\s*(?:\/\d+)?\s*\)/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+// ─── Tab A: Chapter Cards (horizontal scroll) ─────────────────────────────────
 function ChapterCards({ events }: { events: TayoLifeEvent[] }) {
   const sorted = [...events].sort((a, b) => a.approximateYear - b.approximateYear);
 
@@ -129,7 +132,7 @@ function PortraitStats({ dimensions }: { dimensions: TayoDimension[] }) {
   return (
     <div>
       <p className="text-sm mb-6" style={{ color: "#746A5A" }}>
-        How you're doing across the dimensions that matter to you.
+        How you're progressing across the dimensions that shape a meaningful life.
       </p>
 
       <div className="space-y-5">
@@ -164,9 +167,9 @@ function PortraitStats({ dimensions }: { dimensions: TayoDimension[] }) {
 
       <div className="flex flex-wrap gap-4 mt-6 pt-4" style={{ borderTop: "1px solid rgba(44,24,16,0.08)" }}>
         {[
-          { color: "#2D6A4F", label: "Thriving", desc: "Strong, energised, aligned" },
-          { color: "#7A9E87", label: "Building", desc: "Growing, some friction" },
-          { color: "#D4A843", label: "Needs Attention", desc: "Significant gap or challenge" },
+          { color: "#1B5E20", label: "Thriving", desc: "Strong, energised, aligned" },
+          { color: "#81C784", label: "Building", desc: "Growing, some friction" },
+          { color: "#F9A825", label: "Needs Attention", desc: "Significant gap or challenge" },
         ].map(item => (
           <div key={item.label} className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
@@ -262,9 +265,12 @@ export default function Dashboard() {
   const [snapshotLoading, setSnapshotLoading] = useState(true);
   const [orbState, setOrbState] = useState<OrbState>("idle");
   const [isPlaying, setIsPlaying] = useState(false);
+  const [portraitOrbState, setPortraitOrbState] = useState<OrbState>("idle");
+  const [isPortraitPlaying, setIsPortraitPlaying] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [snapshotHistory, setSnapshotHistory] = useState<{ id: string; snapshot_version: number; created_at: string }[]>([]);
   const [remoteFirstName, setRemoteFirstName] = useState<string | null>(null);
+  const [coachName, setCoachName] = useState<string | null>(null);
   const [lastSessionEndedAt, setLastSessionEndedAt] = useState<string | null>(null);
   const [sessionCount, setSessionCount] = useState<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -287,6 +293,9 @@ export default function Dashboard() {
           const d = await profileRes.json();
           if (d.profile?.first_name) setRemoteFirstName(d.profile.first_name);
           if (d.profile?.last_session_ended_at) setLastSessionEndedAt(d.profile.last_session_ended_at);
+          const coachId = d.profile?.coach_id;
+          const coachMap: Record<string, string> = { maya: "Maya", carlos: "Carlos", aisha: "Aisha", james: "James" };
+          if (coachId) setCoachName(coachMap[coachId] ?? null);
         }
         if (sessionsRes.ok) {
           const d = await sessionsRes.json();
@@ -308,27 +317,14 @@ export default function Dashboard() {
     } catch { /* silent */ }
   };
 
-  const handleListenScorecard = useCallback(async () => {
-    if (isPlaying) {
-      audioRef.current?.pause();
-      audioRef.current = null;
-      setIsPlaying(false);
-      setOrbState("idle");
-      return;
-    }
-    const sc = snapshot?.scorecard;
-    if (!sc) return;
-    const text = [
-      sc.purpose ? `Purpose: ${sc.purpose}` : "",
-      sc.values?.length ? `Core values: ${sc.values.join(", ")}.` : "",
-      sc.strengths?.length ? `Strengths: ${sc.strengths.join(". ")}.` : "",
-      sc.challenges?.length ? `Strategic challenges: ${sc.challenges.join(". ")}.` : "",
-      sc.focusAreas?.length ? `Focus areas: ${sc.focusAreas.join(". ")}.` : "",
-    ].filter(Boolean).join(" ");
+  const stopAudio = useCallback(() => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+  }, []);
 
-    if (!text) return;
-    setOrbState("speaking");
-    setIsPlaying(true);
+  const playText = useCallback(async (text: string, onStart: () => void, onEnd: () => void) => {
+    stopAudio();
+    onStart();
     try {
       const coachVoiceId = localStorage.getItem("tayo_coach_voice_id") || undefined;
       const body: Record<string, string> = { text };
@@ -342,13 +338,49 @@ export default function Dashboard() {
       const audio = new Audio(URL.createObjectURL(blob));
       audioRef.current = audio;
       audio.play();
-      audio.onended = () => { setIsPlaying(false); setOrbState("idle"); };
-      audio.onerror = () => { setIsPlaying(false); setOrbState("idle"); };
-    } catch {
+      audio.onended = onEnd;
+      audio.onerror = onEnd;
+    } catch { onEnd(); }
+  }, [stopAudio]);
+
+  const handleListenScorecard = useCallback(async () => {
+    if (isPlaying) {
+      stopAudio();
       setIsPlaying(false);
       setOrbState("idle");
+      return;
     }
-  }, [snapshot, isPlaying]);
+    const sc = snapshot?.scorecard;
+    if (!sc) return;
+    const text = [
+      sc.purpose ? `Purpose: ${sc.purpose}` : "",
+      sc.values?.length ? `Core values: ${sc.values.join(", ")}.` : "",
+      sc.strengths?.length ? `Strengths: ${sc.strengths.join(". ")}.` : "",
+      sc.challenges?.length ? `Strategic challenges: ${sc.challenges.join(". ")}.` : "",
+      sc.focusAreas?.length ? `Focus areas: ${sc.focusAreas.join(". ")}.` : "",
+    ].filter(Boolean).join(" ");
+    if (!text) return;
+    await playText(text,
+      () => { setOrbState("speaking"); setIsPlaying(true); },
+      () => { setIsPlaying(false); setOrbState("idle"); }
+    );
+  }, [snapshot, isPlaying, playText, stopAudio]);
+
+  const handleListenPortrait = useCallback(async () => {
+    if (isPortraitPlaying) {
+      stopAudio();
+      setIsPortraitPlaying(false);
+      setPortraitOrbState("idle");
+      return;
+    }
+    const narrative = snapshot?.narrative_blurb ?? profile?.overallNarrative;
+    if (!narrative) return;
+    const clean = stripNumbers(narrative);
+    await playText(clean,
+      () => { setPortraitOrbState("speaking"); setIsPortraitPlaying(true); },
+      () => { setIsPortraitPlaying(false); setPortraitOrbState("idle"); }
+    );
+  }, [snapshot, profile, isPortraitPlaying, playText, stopAudio]);
 
   if (!isHydrated) return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F5F0E8" }}>
@@ -357,12 +389,13 @@ export default function Dashboard() {
   );
 
   const firstName = remoteFirstName ?? profile?.firstName ?? "";
+  const rawNarrative = snapshot?.narrative_blurb ?? profile?.overallNarrative ?? null;
   const displayData = {
     firstName,
     events: snapshot ? (snapshot.chapter_cards ?? []) : (profile?.lifeEvents ?? []),
     dimensions: snapshot ? (snapshot.portrait_stats ?? []) : (profile?.dimensions ?? []),
     scorecard: snapshot?.scorecard ?? null,
-    narrative: snapshot?.narrative_blurb ?? profile?.overallNarrative ?? null,
+    narrative: rawNarrative ? stripNumbers(rawNarrative) : null,
   };
 
   // Session lock logic
@@ -424,7 +457,7 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* Narrative blurb */}
+        {/* Your Evolving Portrait — narrative blurb with voice listen button */}
         {displayData.narrative && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -432,7 +465,21 @@ export default function Dashboard() {
             className="rounded-xl p-5 mb-4"
             style={{ backgroundColor: "rgba(44,24,16,0.03)", border: "1px solid rgba(44,24,16,0.06)" }}
           >
-            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#9B8E84" }}>Your evolving portrait</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#9B8E84" }}>Your Evolving Portrait</p>
+              <button
+                onClick={handleListenPortrait}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full transition-all hover:opacity-70"
+                style={{
+                  backgroundColor: isPortraitPlaying ? "rgba(196,98,45,0.1)" : "rgba(44,24,16,0.05)",
+                  color: isPortraitPlaying ? "#C4622D" : "#9B8E84",
+                  border: `1px solid ${isPortraitPlaying ? "rgba(196,98,45,0.3)" : "rgba(44,24,16,0.1)"}`,
+                }}
+              >
+                <Headphones className="w-3 h-3" />
+                <span>{isPortraitPlaying ? "Stop" : "Listen"}</span>
+              </button>
+            </div>
             <p className="text-sm leading-relaxed" style={{ color: "#5C4A3D", fontStyle: "italic" }}>{displayData.narrative}</p>
           </motion.div>
         )}
@@ -478,7 +525,7 @@ export default function Dashboard() {
           {activeTab === "portrait" && (
             <div>
               <h3 className="font-display text-base mb-1 text-center" style={{ color: "#2C1810" }}>Who You Are Now</h3>
-              <p className="text-xs text-center mb-6" style={{ color: "#9B8E84" }}>Your life across each dimension — honestly mapped</p>
+              <p className="text-xs text-center mb-6" style={{ color: "#9B8E84" }}>How you're progressing across the dimensions that shape a meaningful life.</p>
               {snapshotLoading ? (
                 <div className="flex justify-center py-8"><div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(196,98,45,0.2)", borderTopColor: "#C4622D" }} /></div>
               ) : (
@@ -506,7 +553,7 @@ export default function Dashboard() {
           )}
         </motion.div>
 
-        {/* Session CTA */}
+        {/* Begin Coaching Session CTA */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -520,29 +567,24 @@ export default function Dashboard() {
             >
               <Lock className="w-4 h-4" style={{ color: "#9B8E84" }} />
               <div className="text-left">
-                <p className="text-sm font-medium" style={{ color: "#2C1810" }}>Session {nextSessionNumber} locked</p>
-                <p className="text-xs" style={{ color: "#9B8E84" }}>Unlocks in {daysUntilUnlock} {daysUntilUnlock === 1 ? "day" : "days"}</p>
+                <p className="text-sm font-semibold" style={{ color: "#746A5A" }}>
+                  Next session available in {daysUntilUnlock} {daysUntilUnlock === 1 ? "day" : "days"}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "#9B8E84" }}>
+                  Use this time to work through your Next Moves.
+                </p>
               </div>
-              <button
-                onClick={() => setLocation("/next-moves")}
-                className="text-xs font-semibold px-3 py-1.5 rounded-full"
-                style={{ backgroundColor: "rgba(122,158,135,0.15)", color: "#7A9E87" }}
-              >
-                View Next Moves
-              </button>
             </div>
           ) : (
-            <div>
-              <button
-                onClick={() => setLocation("/intake")}
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-semibold text-base transition-all hover:scale-105 shadow-md"
-                style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
-              >
-                {sessionCount === 0 ? "Begin your first session" : `Begin Session ${nextSessionNumber}`}
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              <p className="text-xs mt-2" style={{ color: "#9B8E84" }}>Find a quiet space · 25–30 minutes</p>
-            </div>
+            <button
+              onClick={() => setLocation("/intake")}
+              className="px-8 py-4 rounded-2xl font-semibold text-base transition-all hover:scale-105 shadow-md"
+              style={{ backgroundColor: "#C4622D", color: "#F5F0E8", boxShadow: "0 4px 16px rgba(196,98,45,0.3)" }}
+            >
+              {sessionCount === 0
+                ? "Begin your first session"
+                : `Start session ${nextSessionNumber}${coachName ? ` with ${coachName}` : ""}`}
+            </button>
           )}
         </motion.div>
       </main>

@@ -86,7 +86,20 @@ export default function NextMoves() {
               });
               if (res.ok) {
                 const data = await res.json();
-                setResources(data.resources ?? []);
+                const recs: Resource[] = data.resources ?? [];
+                setResources(recs);
+                // Persist to localStorage for Profile resource library
+                if (recs.length > 0) {
+                  try {
+                    const existing = JSON.parse(localStorage.getItem("tayo_resources") || "[]") as Resource[];
+                    const merged = [...existing];
+                    for (const r of recs) {
+                      const dupe = merged.some(e => e.title === r.title);
+                      if (!dupe) merged.push(r);
+                    }
+                    localStorage.setItem("tayo_resources", JSON.stringify(merged.slice(0, 50)));
+                  } catch { /* non-fatal */ }
+                }
               }
             } catch { /* silent */ }
             setLoadingResources(false);

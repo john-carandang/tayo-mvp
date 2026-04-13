@@ -1,0 +1,122 @@
+Looking back at all the feedback from your screenshots and video, here's what still needs to be addressed in a targeted prompt. This assumes the V3.1 comprehensive build is already running — these are refinements on top of it.
+
+---
+
+**TAYO — V3.1 REFINEMENT PROMPT**
+
+Do not rebuild anything from scratch. Apply these targeted fixes to the existing codebase only.
+
+---
+
+**PART 1 — SESSION FIXES**
+
+**1A. Greet user by first name**
+At the start of every voice session, the coach must address the user by their first name loaded from Supabase `user_profiles.first_name`. Never say "friend" or use a generic greeting.
+
+**1B. Session timer and popup timing**
+The "finish conversation and go to dashboard" prompt must not appear until exactly the 28-minute mark. Before that, no popup or CTA should interrupt the conversation. At 28 minutes, the coach naturally begins the closing sequence. Remove any earlier timeout triggers.
+
+**1C. Abrupt session cutoff fix**
+The session must not navigate away from the intake page until the coach has explicitly completed the closing sequence: themes summary → assignment commitment question → user responds → coach confirms commitments → coach delivers closing message → then and only then navigate to `/dashboard`. Add a minimum session close duration of 60 seconds after the timer hits 28 minutes before any redirect is allowed.
+
+**1D. Session closing message**
+The final thing the coach says before the session ends must include: "Your dashboard is now being updated with your story, who you are now, and where you're heading. These are very much a work in progress — they'll evolve and deepen as we continue our sessions together. I'll see you in a week."
+
+**1E. User-defined assignments at session close**
+Before the closing message, the coach must ask: "Based on everything we've talked about today, what are one or two things you feel ready to commit to before we speak again? They could be daily habits, something to try once, or just something to reflect on." Wait for the user's spoken response. Confirm their commitments back verbally: "So you're committing to [X] — I'll add that to your Next Moves." Then log each commitment to Supabase `assignments` table with `type`, `title`, and `description` extracted from what the user said.
+
+---
+
+**PART 2 — DASHBOARD FIXES**
+
+**2A. Dashboard title**
+Replace "Friend's Dashboard" with `[firstName]'s Dashboard` using `user_profiles.first_name` from Supabase. This must be dynamic — never hardcoded.
+
+**2B. Evolving portrait — no quantitative scores**
+The narrative blurb in the "Your Evolving Portrait" section must never reference any numbers, percentages, or scores (e.g., remove phrases like "sits at only a 4 out of 10"). The blurb is qualitative narrative only — it should read like a second-person story, not a report.
+
+**2C. Evolving portrait — voice narration**
+Add a small voice orb button next to the "Your Evolving Portrait" heading. When clicked, it plays an ElevenLabs narration of the full portrait text using the user's selected coach voice ID. Generate the audio on first load and cache the URL in Supabase.
+
+**2D. Journey to Date — horizontal scroll Chapter Cards**
+Use the horizontal scroll Chapter Cards layout (not a snake/zigzag layout). Cards scroll left to right. Each card shows: mood tag with colored dot, chapter title, 2-sentence description, life period. Connected by a thin horizontal line. Warm retro aesthetic with cream background.
+
+**2E. Who You Are Now — color scheme**
+Update the fill bar colors to:
+- Thriving = dark green (`#1B5E20` or equivalent)
+- Building = light green (`#81C784` or equivalent)
+- Needs Attention = yellow (`#F9A825` or equivalent)
+
+Remove the user name and purpose statement from the top of this tab. Replace with a single brief explanatory sentence: "How you're progressing across the dimensions that shape a meaningful life."
+
+**2F. Strategic Plan — strengths with context**
+Each bullet under Strengths must include a brief explanatory phrase that grounds the strength in the user's actual story — not just a label. Format: "**[Strength name]** — [one sentence explaining what this looks like in their life]." For example: "**Body as a barometer** — your physical health has consistently signaled when you're in or out of alignment, often before your mind catches up."
+
+**2G. Strategic Plan — Focus Areas, remove scores**
+Focus Areas bullets must show only the dimension name and a brief explanation of why it matters now. Remove all numerical scores, importance ratings, and thriving ratings from this section entirely. They are for internal reference only and must not appear in the UI.
+
+---
+
+**PART 3 — NAVIGATION AND STRUCTURE**
+
+**3A. Remove from top navigation**
+Remove "Coaching Session" and "Strategic Plan" from the top navigation bar entirely. The logged-in nav should show only: Dashboard, Next Moves, FAQ, and the user avatar/name.
+
+**3B. Next Moves as standalone step**
+"Your Next Moves" must not appear as a tab inside the dashboard. It is a standalone page at `/next-moves` accessible from the top navigation. Remove it from the dashboard tab row.
+
+**3C. Begin coaching session CTA on dashboard**
+At the bottom of the dashboard (below all three tabs), add a "Begin coaching session" CTA button. When the session is locked (within 7-day window), show it greyed out with the label "Next session available [date]." When unlocked, show it as an active burnt orange button: "Start session [N] with [coachName]."
+
+---
+
+**PART 4 — NEXT MOVES PAGE**
+
+**4A. Resource links — real URLs only**
+Every resource card must link to a real, working URL. Only use resources from these providers: Brené Brown (brenebrown.com), James Clear (jamesclear.com), Mel Robbins (melrobbins.com), Adam Grant (adamgrant.net), Harvard Business Review (hbr.org), Diary of a CEO (open.spotify.com/show/7iQXmUT7XGuZSzAMjoNWlX), Chris Williamson (open.spotify.com/show/0pWhyuXkXABCqVysmZfZpH), Glennon Doyle We Can Do Hard Things (open.spotify.com/show/4P86ZzHf7nfnJdTR0MSPEG), Tim Ferriss (tim.blog), Esther Perel (estherperel.com). Never generate a fictional or hallucinated URL. Before inserting any URL, verify it is from this approved list.
+
+**4B. Resources informed by warm-up data**
+When Claude generates resource recommendations via `/api/resources`, pass the user's warm-up data (music, YouTube, books/shows) alongside their session profile. Use this to select resources that feel culturally and personally relevant — if someone listed Kendrick Lamar and Diary of a CEO in their warm-up, lean toward those creators' ecosystems in the recommendations.
+
+---
+
+**PART 5 — PROFILE PORTAL**
+
+**5A. Resources library with checklist**
+In the Profile portal under "My Resources," display every resource ever recommended across all sessions, organized by type (Books, Podcasts, Articles, YouTube). Each item has a checkbox for "Read" / "Listened" / "Watched." Checkbox state saved to Supabase. Completed items shown with muted styling.
+
+**5B. Past sessions with snapshots**
+Each past session in the profile shows: session number, coach name, date, duration, and a "View dashboard snapshot" link. The link loads that historical version of the dashboard from `dashboard_snapshots` in Supabase — not the current live version.
+
+---
+
+**PART 6 — IMAGERY**
+
+Add warm, high-quality stock photo placeholders of BIPOC Millennials (label each `[BIPOC photo placeholder]` with a warm cream fill) in the following locations:
+- Landing page hero section — 2 photos
+- Warm-up page — 1 photo
+- Voice intake page — 1 subtle background or side placement
+
+These should feel aspirational, warm, and natural — not corporate stock photo energy.
+
+---
+
+**DEFINITION OF DONE**
+
+1. Session never navigates away until closing sequence is fully complete
+2. Coach greets user by first name in every session
+3. Session popup only appears at 28-minute mark
+4. User defines their own assignments before session closes; commitments logged to Supabase
+5. Dashboard shows `[firstName]'s Dashboard` — never "Friend's Dashboard"
+6. Evolving portrait contains no numbers or scores
+7. Voice narration button works on evolving portrait using selected coach voice
+8. Journey to Date uses horizontal scroll Chapter Cards
+9. Who You Are Now uses dark green / light green / yellow color scheme with brief explanatory sentence
+10. Strategic Plan strengths include explanatory phrases; focus areas have no scores
+11. Top nav shows Dashboard, Next Moves, FAQ only — no Coaching Session or Strategic Plan
+12. Next Moves is a standalone page — not a dashboard tab
+13. Begin coaching session CTA appears at bottom of dashboard with correct lock/unlock state
+14. All resource links are real working URLs from approved providers only
+15. Profile portal shows resource library with checkboxes and past session snapshots
+
+After completing, screenshot each changed section and confirm files changed.
