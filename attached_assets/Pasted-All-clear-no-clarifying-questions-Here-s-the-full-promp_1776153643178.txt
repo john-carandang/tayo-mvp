@@ -1,0 +1,96 @@
+All clear — no clarifying questions. Here's the full prompt:
+
+---
+
+**Context:** The Tayo landing page has been through several rounds of updates. We are now applying a consolidated set of aesthetic upgrades across the hero, navbar, testimonials, problem, solution, and how-it-works sections. A wireframe reference has been provided. Do not change layout structure, copy, or component logic unless explicitly instructed below.
+
+**Task:** Six targeted aesthetic updates. Apply all of them in a single pass.
+
+---
+
+**Update 1 — Navbar**
+- Keep the navbar transparent over the hero image — no solid background color
+- Logo text: "Tayo" (capitalized, not lowercase), `font-size: 20px`, serif font (`font-family: var(--font-serif)` or the site's existing serif stack), `color: #F7F0E0` (white)
+- Nav links "How it works" and "FAQ": `font-size: 15px`, `color: #F7F0E0`, hover state `color: rgba(247,240,224,0.7)`
+- "Sign up / Log in" button: keep existing burnt orange pill style, `font-size: 12px`, `padding: 7px 18px`
+- Do not add a background color or border to the navbar
+
+---
+
+**Update 2 — Hero headline treatment**
+- Remove the parchment highlight boxes (`background: rgba(247,240,224,0.88)`) behind the headline text entirely
+- Replace with plain white text, no background box: `color: #F7F0E0`, `font-family` serif, `font-size: 64px` desktop / `40px` mobile, `font-weight: 500`, `line-height: 1.2`
+- Add `text-shadow: 0 2px 16px rgba(0,0,0,0.65)` to the headline for legibility over any part of the image
+- Subheading: remove solid box background, replace with a frosted pill — `background: rgba(247,240,224,0.15)`, `border-radius: 20px`, `padding: 6px 20px`, `color: rgba(247,240,224,0.88)`, `font-size: 15px`
+- Disclaimer badge (if present): same frosted pill treatment, `font-size: 13px`
+- CTA button: keep existing burnt orange pill, no changes
+
+---
+
+**Update 3 — Typography: serif throughout, all sections below hero**
+- All quote text in testimonials (center card and side cards): `font-family` serif, `font-style: normal` (not italic), `color: #1C1812`
+- All body paragraph text in problem, solution, and how-it-works sections: `font-family` serif, `font-style: normal`
+- Attribution lines (e.g. "— Ian W."): keep `font-family` sans-serif, `font-weight: 500`, `color: #2A6B63`
+- Section eyebrow labels (e.g. "What people are saying", "The problem"): keep sans-serif uppercase, `color: #C4622D`
+- Step titles in how-it-works: keep sans-serif, `font-weight: 500`
+- Pillar titles in solution: keep sans-serif, `font-weight: 500`
+
+---
+
+**Update 4 — Color: burnt orange problem section**
+- Problem section background: change from `#E8D5A8` to `#C4622D`
+- Problem section eyebrow label: `color: rgba(247,240,224,0.7)`, uppercase sans-serif
+- Problem headline: `color: #F7F0E0`. The accent word "overwhelm." changes from `#C4622D` to `#F7E8A0` (pale gold) so it still pops against the now-orange background
+- Problem body paragraphs: `color: rgba(247,240,224,0.82)`, serif
+- Final bolded problem statement: `color: #F7F0E0`, `font-weight: 500`
+- All other section colors unchanged (testimonials parchment `#F7F0E0`, solution `#1C1812`, how-it-works `#F7F0E0`)
+
+---
+
+**Update 5 — Font sizes: full spec increase**
+
+Apply these sizes to all sections from testimonials downward. Do not change hero or navbar sizes (those are set above):
+
+- Section eyebrow labels: `15px`
+- Testimonial center quote text: `24px`
+- Testimonial side quote text: `17px`
+- Attribution lines: `14px`
+- Problem headline: `52px`
+- Problem body paragraphs: `18px`
+- Solution eyebrow: `14px`
+- Solution headline: `40px`
+- Solution body paragraphs: `18px`
+- Pillar card titles: `17px`
+- Pillar card descriptions: `15px`
+- How it works headline: `46px`
+- Step titles: `20px`
+- Step descriptions: `17px`
+
+---
+
+**Update 6 — Testimonial transition: revolving door slide**
+
+Replace the current all-at-once fade (all elements fade out simultaneously, then fade back in) with a directional slide transition:
+
+- When advancing forward (next arrow or dot click for a higher index): current content slides out to the left (`translateX(0) → translateX(-100%)`) while new content slides in from the right (`translateX(100%) → translateX(0)`)
+- When going backward (prev arrow or dot click for a lower index): current content slides out to the right (`translateX(0) → translateX(100%)`) while new content slides in from the left (`translateX(-100%) → translateX(0)`)
+- Transition duration: `380ms`, easing: `cubic-bezier(0.4, 0, 0.2, 1)`
+- The three-column grid (side left, center, side right) must all move together as a single unit — wrap all three cards in a shared `overflow: hidden` container so the sliding cards are clipped cleanly at the section edges
+- New content must be pre-positioned off-screen before the transition begins so there is no flash or jump
+- Dot indicators update immediately on click, before the animation completes
+- Wrap the testimonial content area in `position: relative; overflow: hidden` and position the card grid with `position: absolute` during transition, returning to normal flow after
+
+---
+
+**Update 7 — Divider between "How it works" and "Ready to begin?"**
+- Add a `<hr>` or `border-top` divider between the how-it-works step list and the "Ready to begin?" closing CTA section
+- Style: `border: none; border-top: 1px solid rgba(60,40,20,0.10); margin: 0 48px`
+- The divider should span the inner content width, not full bleed
+
+---
+
+**Security & Privacy:** No user data involved. Pure visual and animation change.
+
+**UI/UX:** The page should now feel like a single coherent editorial piece — the dark hero flows into parchment testimonials, punches into a bold orange problem statement, drops into the near-black solution section, and returns to parchment for the how-it-works steps. Typography is consistently warm serif throughout. The testimonial transition should feel physical and spatial — like turning a page — not like elements blinking on and off.
+
+**Verification:** After completing, confirm: (1) navbar is transparent with white "Tayo" in serif and white nav links, (2) hero headline is white text with text-shadow and no background box, (3) problem section is burnt orange with parchment text and pale gold accent, (4) all quote and body text below the hero is serif non-italic, (5) testimonial slide transition moves as a single unit left/right — no all-at-once fade, (6) faint divider is visible between how-it-works and ready-to-begin sections, (7) no layout shifts or copy changes occurred.
