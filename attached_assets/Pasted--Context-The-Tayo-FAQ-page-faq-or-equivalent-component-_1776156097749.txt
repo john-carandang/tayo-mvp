@@ -1,0 +1,63 @@
+**Context:** The Tayo FAQ page (`/faq` or equivalent component) has aesthetic inconsistencies with the landing and auth pages, and requires several copy edits and structural changes.
+
+**Task:** Two things in one pass: (1) apply the Amber & Teal design system to the FAQ page, and (2) apply the copy and structure changes below. Do not change any other pages.
+
+---
+
+**Part 1 — Aesthetic alignment**
+
+Match the FAQ page exactly to the landing and auth page styles:
+
+- Page background: `#F7F0E0`
+- Navbar: import and use the shared `Navbar` component (same as landing and auth pages) — do not maintain a separate navbar on this page
+- Page title ("About Tayo"): serif font, `font-size: 40px`, `font-weight: 500`, `color: #1C1812`, centered
+- Page subtitle ("Everything you need to know..."): serif font, `font-size: 18px`, `color: #7a5c44`, centered
+- FAQ accordion cards: `background: #fff`, `border: 0.5px solid rgba(60,40,20,0.12)`, `border-radius: 12px`, `padding: 24px 28px`
+- Question text: sans-serif, `font-size: 17px`, `font-weight: 500`, `color: #1C1812`
+- Answer text: serif, `font-size: 16px`, `line-height: 1.8`, `color: #5a4a3f`
+- Expand/collapse chevron icon: `color: #C4622D`
+- "Ready to begin?" CTA card: `background: #E8D5A8`, `border-radius: 16px`, `padding: 48px 32px`, centered. Title: serif `font-size: 32px` `color: #1C1812`. Subtitle: serif `font-size: 17px` `color: #7a5c44`. Button: burnt orange pill, existing style
+- Any hyperlinks in answer text: `color: #2A6B63`, `text-decoration: underline`, hover `color: #1C1812`
+- Paper grain texture (if applied on landing page): apply same treatment to `#F7F0E0` background here
+
+---
+
+**Part 2 — Structure and copy changes**
+
+**Change 1 — Reorder FAQ items:**
+Move "Who is Tayo for?" to immediately after "What is Tayo not?" — it becomes the third item. All other items retain their existing order below it.
+
+Final order:
+1. What is Tayo?
+2. What is Tayo not?
+3. Who is Tayo for?
+4. How does Tayo's coaching approach work?
+5. Is Tayo a human coach? ← new item, see Change 5
+6. How often can I have a session?
+7. What happens between sessions?
+8. How does Tayo protect my data?
+9. Can I change my coach?
+
+**Change 2 — "What is Tayo?" answer copy:**
+- Find: `"Tayo helps you map your life story, clarify your values, understand your patterns, and build a meaningful path forward."`
+- Replace with: `"Tayo helps you understand your life journey, clarify your values, and build a meaningful path forward."`
+- (Remove "map your life story" and "understand your patterns" as specified — keep all other sentence text intact)
+
+**Change 3 — "How does Tayo's coaching approach work?" answer copy:**
+- Remove this sentence entirely: `"It is not a substitute for working with a credentialed human coach. Find one at coachingfederation.org/get-coaching/"`
+- After the existing answer text, add the following new paragraph:
+  `"What sets Tayo apart is its ability to learn and grow with you over time. Rather than starting from scratch each session, Tayo builds a living portrait of who you are — tracking your growth, surfacing patterns, and evolving your Strategic Plan as your life does. Your dashboard gives you a holistic, whole-person view across every dimension of your life, so progress is visible, not just felt. Tayo also draws on culturally grounded resources — surfacing content, frameworks, and perspectives that are relevant to your background, values, and lived experience."`
+
+**Change 4 — New FAQ item: "Is Tayo a human coach?"**
+- Add as item 5 in the list (after "How does Tayo's coaching approach work?")
+- Question: `"Is Tayo a human coach?"`
+- Answer: `"No. Tayo is an AI coaching tool — not a human coach, therapist, or mental health provider. If you're looking for a credentialed human coach, you can find one through the International Coaching Federation's <a href='https://coachingfederation.org/get-coaching/' target='_blank' rel='noopener noreferrer'>website</a>."`
+- The word "website" must be a hyperlink to `https://coachingfederation.org/get-coaching/` — styled `color: #2A6B63`, `text-decoration: underline`
+
+---
+
+**Security & Privacy:** No user data involved. The ICF hyperlink must include `rel="noopener noreferrer"` since it opens in a new tab. No other external links introduced.
+
+**UI/UX:** The FAQ page should feel like a natural continuation of the landing page — same warmth, same typography, same palette. The accordion cards should feel calm and trustworthy, not clinical. The "Ready to begin?" CTA at the bottom should feel like a warm invitation, not a hard sell.
+
+**Verification:** After completing, confirm: (1) FAQ page background is `#F7F0E0` and uses the shared Navbar component, (2) accordion question text is sans-serif 17px, answer text is serif 16px, (3) FAQ order matches the sequence listed above exactly, (4) "Who is Tayo for?" is the third item, (5) "Is Tayo a human coach?" appears as item 5 with a working hyperlink to the ICF site, (6) the two copy changes in "What is Tayo?" and "How does Tayo's coaching approach work?" are applied exactly as written, (7) no other pages were changed.

@@ -1,22 +1,50 @@
-import { motion } from "framer-motion";
+import { useState, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { Navbar } from "@/components/layout/Navbar";
 import { useAuth } from "@/contexts/AuthContext";
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
 
-const FAQS = [
+const FAQS: Array<{ q: string; a: ReactNode }> = [
   {
     q: "What is Tayo?",
-    a: "Tayo is an AI coaching companion designed to support self-understanding and personal growth. Through voice conversations, Tayo helps you map your life story, clarify your values, understand your patterns, and build a meaningful path forward."
+    a: "Tayo is an AI coaching companion designed to support self-understanding and personal growth. Through voice conversations, Tayo helps you understand your life journey, clarify your values, and build a meaningful path forward."
   },
   {
     q: "What is Tayo not?",
     a: "Tayo is not a human coach, a therapist, or a mental health service. It is an AI tool. If you are experiencing a mental health crisis or need clinical support, please reach out to a qualified mental health professional immediately."
   },
   {
+    q: "Who is Tayo for?",
+    a: "Tayo is built for people who are ready to do the inner work — who want to understand themselves more clearly, make sense of their story, and move intentionally toward a life that reflects what actually matters to them. It works best for people who show up honest and open."
+  },
+  {
     q: "How does Tayo's coaching approach work?",
-    a: "Tayo's approach is aligned with ICF Core Competencies (2025) and ICF AI Coaching Standards — grounded in the belief that you are naturally creative, resourceful, and whole. Tayo asks the questions and creates the space for you to find your own answers. It is not a substitute for working with a credentialed human coach. Find one at coachingfederation.org/get-coaching/"
+    a: (
+      <>
+        <span>Tayo's approach is aligned with ICF Core Competencies (2025) and ICF AI Coaching Standards — grounded in the belief that you are naturally creative, resourceful, and whole. Tayo asks the questions and creates the space for you to find your own answers.</span>
+        <br /><br />
+        <span>What sets Tayo apart is its ability to learn and grow with you over time. Rather than starting from scratch each session, Tayo builds a living portrait of who you are — tracking your growth, surfacing patterns, and evolving your Strategic Plan as your life does. Your dashboard gives you a holistic, whole-person view across every dimension of your life, so progress is visible, not just felt. Tayo also draws on culturally grounded resources — surfacing content, frameworks, and tools that reflect your lived experience.</span>
+      </>
+    )
+  },
+  {
+    q: "Is Tayo a human coach?",
+    a: (
+      <>
+        No. Tayo is an AI coaching tool — not a human coach, therapist, or mental health provider. If you're looking for a credentialed human coach, you can find one through the International Coaching Federation's{" "}
+        <a
+          href="https://coachingfederation.org/get-coaching/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "#2A6B63", textDecoration: "underline" }}
+          onMouseEnter={e => (e.currentTarget.style.color = "#1C1812")}
+          onMouseLeave={e => (e.currentTarget.style.color = "#2A6B63")}
+        >
+          website
+        </a>
+        .
+      </>
+    )
   },
   {
     q: "How often can I have a session?",
@@ -34,39 +62,72 @@ const FAQS = [
     q: "Can I change my coach?",
     a: "Yes. You can change your coach at any time through your Profile settings. Keep in mind that your coach selection does affect the voice and style of your sessions — it's worth listening to each voice before deciding."
   },
-  {
-    q: "Who is Tayo for?",
-    a: "Tayo is built for people who are ready to do the inner work — who want to understand themselves more clearly, make sense of their story, and move intentionally toward a life that reflects what actually matters to them. It works best for people who show up honest and open."
-  },
 ];
 
-function FAQItem({ q, a, delay }: { q: string; a: string; delay: number }) {
+function FAQItem({ q, a, index }: { q: string; a: ReactNode; index: number }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className="rounded-2xl overflow-hidden"
-      style={{ backgroundColor: "#FFFDF8", border: "1px solid rgba(44,24,16,0.08)" }}
+    <div
+      style={{
+        backgroundColor: "#fff",
+        border: "0.5px solid rgba(60,40,20,0.12)",
+        borderRadius: 12,
+        overflow: "hidden",
+      }}
     >
       <button
         onClick={() => setOpen(s => !s)}
-        className="w-full text-left px-6 py-5 flex items-center justify-between gap-4"
+        style={{
+          width: "100%",
+          textAlign: "left",
+          padding: "24px 28px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+        }}
       >
-        <span className="font-display text-base font-medium" style={{ color: "#2C1810" }}>{q}</span>
+        <span
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: 17,
+            fontWeight: 500,
+            color: "#1C1812",
+            lineHeight: 1.4,
+          }}
+        >
+          {q}
+        </span>
         <ChevronDown
-          className="w-4 h-4 flex-shrink-0 transition-transform"
-          style={{ color: "#9B8E84", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+          style={{
+            width: 18,
+            height: 18,
+            flexShrink: 0,
+            color: "#C4622D",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 250ms ease",
+          }}
         />
       </button>
       {open && (
-        <div className="px-6 pb-5">
-          <p className="text-sm leading-relaxed" style={{ color: "#746A5A" }}>{a}</p>
+        <div style={{ padding: "0 28px 24px" }}>
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 16,
+              lineHeight: 1.8,
+              color: "#5a4a3f",
+            }}
+          >
+            {a}
+          </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -75,51 +136,95 @@ export default function FAQ() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F5F0E8" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "#F7F0E0" }}>
       <Navbar />
 
-      <main className="max-w-2xl mx-auto px-6 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
-        >
-          <h1 className="font-display text-4xl mb-4" style={{ color: "#2C1810" }}>
+      <main style={{ maxWidth: 680, margin: "0 auto", padding: "64px 24px 96px" }}>
+
+        {/* Page header */}
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <h1
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 40,
+              fontWeight: 500,
+              color: "#1C1812",
+              marginBottom: 14,
+            }}
+          >
             About Tayo
           </h1>
-          <p className="text-base leading-relaxed" style={{ color: "#746A5A" }}>
+          <p
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 18,
+              color: "#7a5c44",
+              lineHeight: 1.6,
+            }}
+          >
             Everything you need to know before you begin — and as you go.
           </p>
-        </motion.div>
+        </div>
 
-        <div className="space-y-3 mb-16">
+        {/* Accordion list */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 64 }}>
           {FAQS.map((faq, i) => (
-            <FAQItem key={i} q={faq.q} a={faq.a} delay={i * 0.05} />
+            <FAQItem key={faq.q} q={faq.q} a={faq.a} index={i} />
           ))}
         </div>
 
+        {/* CTA card */}
         {!user && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-center py-10 rounded-3xl"
-            style={{ background: "linear-gradient(135deg, rgba(196,98,45,0.08) 0%, rgba(122,158,135,0.08) 100%)", border: "1px solid rgba(196,98,45,0.15)" }}
+          <div
+            style={{
+              backgroundColor: "#E8D5A8",
+              borderRadius: 16,
+              padding: "48px 32px",
+              textAlign: "center",
+            }}
           >
-            <h2 className="font-display text-2xl mb-3" style={{ color: "#2C1810" }}>
+            <h2
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 32,
+                fontWeight: 500,
+                color: "#1C1812",
+                marginBottom: 12,
+              }}
+            >
               Ready to begin?
             </h2>
-            <p className="text-sm mb-6" style={{ color: "#746A5A" }}>
+            <p
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 17,
+                color: "#7a5c44",
+                marginBottom: 28,
+                lineHeight: 1.6,
+              }}
+            >
               Your first session is free. No credit card required.
             </p>
             <button
               onClick={() => setLocation("/sign-up")}
-              className="px-8 py-3.5 rounded-full font-semibold text-sm transition-all hover:scale-105 shadow-md"
-              style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
+              style={{
+                padding: "12px 32px",
+                borderRadius: 9999,
+                fontWeight: 600,
+                fontSize: 15,
+                backgroundColor: "#C4622D",
+                color: "#F7F0E0",
+                border: "none",
+                cursor: "pointer",
+                boxShadow: "0 2px 12px rgba(196,98,45,0.25)",
+                transition: "transform 150ms",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.04)")}
+              onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
             >
               Begin your journey
             </button>
-          </motion.div>
+          </div>
         )}
       </main>
     </div>
