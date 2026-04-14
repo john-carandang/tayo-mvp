@@ -1,0 +1,117 @@
+**TAYO — LANDING PAGE REFINEMENT PROMPT**
+
+Apply the following targeted changes to the landing page (`/`) only. Do not touch any other pages or components.
+
+---
+
+**PART 1 — TEXT CHANGES**
+
+1. Replace the headline "Know yourself. Shape what's next." with:
+**"Drown out the noise. Find your signal."**
+
+2. Replace the subheading "Tayo is an AI coaching companion that helps you map your life, understand your patterns, and move with clarity toward what matters most." with:
+**"Tayo is an AI coaching platform that helps you cut through the noise of modern life and tune into who you truly are and what truly matters most."**
+
+3. Remove the disclaimer callout box entirely: "Tayo is an AI coaching tool. It is not a human coach, therapist, or mental health service." This copy already lives on the FAQ page and disclosures page — it does not belong on the landing page hero.
+
+4. Remove "No credit card required" and "Free to get started" text wherever it appears on the landing page.
+
+---
+
+**PART 2 — HERO REDESIGN**
+
+Redesign the top section of the landing page to match the attached reference image. Specifically:
+
+- Use a full-width, full-height hero background image featuring a warm, cozy, retro-aesthetic living room with BIPOC Millennials present — use the attached AI-generated image as the hero background
+- Overlay the headline and subheading text centered on top of the image with a subtle dark overlay behind the text for readability (use `rgba(0,0,0,0.35)` overlay on the image area only)
+- The "Begin your journey" CTA button and disclaimer text sit on top of the image
+- Nav bar remains clean at the top: Tayo logo left, How it works + FAQ center, Sign up / Log in button right (burnt orange)
+- The three testimonial quote cards sit below the hero image fold, not overlapping it — white card background, warm aesthetic
+
+---
+
+**PART 3 — TESTIMONIAL QUOTES**
+
+Replace any existing placeholder quotes with these three, displayed as clean cards in a 3-column row below the hero:
+
+Card 1:
+> "Tayo kept me honest — it caught my incomplete thoughts and contradictions, and connected the dots of my thinking into a cohesive life strategic plan I couldn't have built on my own."
+> — Ian W.
+
+Card 2:
+> "It quickly became personal, even though I've never used anything like it before — it genuinely felt like it was built for me."
+> — Andy L.
+
+Card 3:
+> "Once I saw the dashboards, the benefit became clear — it picked up trends and rephrased things in ways I hadn't thought about, giving me a view of myself I didn't have before."
+> — Nestor F.
+
+Each card: white background, warm border, quote in italic serif, attribution in small caps below. No icons needed.
+
+---
+
+**PART 4 — PROBLEM & SOLUTION SECTIONS**
+
+Insert two new sections between the testimonials and the existing "How Tayo works" section.
+
+**Section A — The Problem**
+
+Section heading: "The problem"
+
+Body copy (render as 3 short paragraphs, warm editorial style — not bullet points):
+
+Paragraph 1: "Millennials and Gen Z crave holistic well-being, growth, and self-actualization more than any generation before them. The desire to live intentionally — across career, relationships, health, finances, and identity — is real and widespread."
+
+Paragraph 2: "Fueling this is unprecedented access to social media, wellness apps, coaching content, and global perspectives. More tools, more advice, more frameworks than ever before."
+
+Paragraph 3: "But access without clarity isn't freedom — it's overwhelm. The noise is louder than ever, and most people are left reacting to whoever is shouting the loudest rather than acting from a clear internal compass."
+
+**Section B — The Solution**
+
+Section heading: "The solution"
+
+Body copy (render as 3 short paragraphs):
+
+Paragraph 1: "Tayo uses the power of AI and life coaching to help you cut through the noise and pressures of modern society — gaining real clarity into who you truly are, what matters most, and what it means to truly self-actualize."
+
+Paragraph 2: "Tayo's coaching approach is grounded in ICF Core Competencies and Co-Active Coaching methodology — the gold standard of the professional coaching world — ensuring every conversation is purposeful, empowering, and genuinely transformative."
+
+Paragraph 3: "Tayo learns and adapts across sessions — building a living portrait of who you are, surfacing culturally relevant resources at the right moments, and tracking your journey over time so growth compounds rather than resets."
+
+Style both sections with generous whitespace, warm cream background, centered text, max-width 680px. The Problem section can use a slightly muted tone; the Solution section can feel warmer and more energizing.
+
+---
+
+**PART 5 — SECTION ORDER**
+
+After all changes, the landing page top-to-bottom order should be:
+
+1. Nav bar
+2. Hero (full-width image with headline, subheading, CTA)
+3. Testimonials (3 cards)
+4. The Problem section
+5. The Solution section
+6. How Tayo works (existing 3-step cards)
+7. Closing CTA section
+
+---
+
+**SECURITY & PERFORMANCE**
+- No new API calls introduced on this page
+- Hero background image served as a static asset — compress to under 500KB before deploying
+- All text changes are frontend only — no backend or Supabase changes required
+
+---
+
+**DEFINITION OF DONE**
+1. Headline reads "Drown out the noise. Find your signal."
+2. Subheading updated as specified
+3. AI disclaimer removed from hero
+4. "No credit card required" removed
+5. Hero uses the attached reference image as full-width background with text overlay
+6. Three testimonial cards show correct quotes and attributions
+7. Problem section appears above Solution section, both above "How Tayo works"
+8. Page order matches the specified sequence
+9. No other pages affected
+
+After completing, take a full-page screenshot of the landing page and confirm what files were changed.

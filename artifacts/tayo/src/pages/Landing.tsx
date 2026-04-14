@@ -43,6 +43,21 @@ interface RemoteProfile {
   last_session_ended_at?: string | null;
 }
 
+const TESTIMONIALS = [
+  {
+    quote: "Tayo kept me honest — it caught my incomplete thoughts and contradictions, and connected the dots of my thinking into a cohesive life strategic plan I couldn't have built on my own.",
+    name: "Ian W.",
+  },
+  {
+    quote: "It quickly became personal, even though I've never used anything like it before — it genuinely felt like it was built for me.",
+    name: "Andy L.",
+  },
+  {
+    quote: "Once I saw the dashboards, the benefit became clear — it picked up trends and rephrased things in ways I hadn't thought about, giving me a view of myself I didn't have before.",
+    name: "Nestor F.",
+  },
+];
+
 export default function Landing() {
   const [, setLocation] = useLocation();
   const { user, loading } = useAuth();
@@ -51,7 +66,6 @@ export default function Landing() {
   const [sessionCount, setSessionCount] = useState<number | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  // Fetch profile when logged in
   useEffect(() => {
     if (!user || loading) return;
     const load = async () => {
@@ -219,77 +233,172 @@ export default function Landing() {
   // ─── Logged-out state ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F5F0E8" }}>
+
+      {/* ── 1. HERO — full-width background image ───────────────────────── */}
+
+      {/* Navbar sits above the hero image */}
       <Navbar />
 
-      {/* Hero */}
+      <section className="relative overflow-hidden" style={{ minHeight: "82vh" }}>
+        {/* Background image */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url(${BASE_URL}/hero-bg.jpg)`,
+            backgroundSize: "cover",
+            backgroundPosition: "center top",
+          }}
+        />
+        {/* Dark overlay for readability */}
+        <div className="absolute inset-0" style={{ backgroundColor: "rgba(0,0,0,0.38)" }} />
+
+        {/* Hero text + CTA */}
+        <div className="relative z-10 flex flex-col items-center justify-center text-center px-6"
+          style={{ minHeight: "82vh", paddingBottom: "5rem" }}
+        >
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+            <h1
+              className="font-display mb-6"
+              style={{
+                fontSize: "clamp(3rem, 8vw, 5.5rem)",
+                lineHeight: 1.08,
+                color: "#FFFFFF",
+                textShadow: "0 2px 24px rgba(0,0,0,0.3)",
+              }}
+            >
+              Drown out the noise.<br />Find your signal.
+            </h1>
+            <p
+              className="mb-10 max-w-2xl mx-auto leading-relaxed"
+              style={{
+                fontSize: "clamp(1rem, 2vw, 1.2rem)",
+                color: "rgba(255,255,255,0.88)",
+                textShadow: "0 1px 8px rgba(0,0,0,0.25)",
+              }}
+            >
+              Tayo is an AI coaching platform that helps you cut through the noise of modern life and tune into who you truly are and what truly matters most.
+            </p>
+            <button
+              onClick={() => setLocation("/sign-up")}
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-base font-semibold transition-all hover:scale-105"
+              style={{
+                backgroundColor: "#C4622D",
+                color: "#F5F0E8",
+                boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+              }}
+            >
+              Begin your journey <ChevronRight className="w-5 h-5" />
+            </button>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Rest of page — constrained */}
       <main className="max-w-5xl mx-auto px-6">
+
+        {/* ── 2. TESTIMONIALS ─────────────────────────────────────────────── */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center py-24"
+          transition={{ delay: 0.2 }}
+          className="py-20"
         >
-          <h1 className="font-display text-5xl md:text-7xl mb-6 leading-tight" style={{ color: "#2C1810", lineHeight: "1.1" }}>
-            Know yourself.<br />Shape what's next.
-          </h1>
-          <p className="text-lg mb-4 max-w-2xl mx-auto leading-relaxed" style={{ color: "#5C4A3D" }}>
-            Tayo is an AI coaching companion that helps you map your life, understand your patterns, and move with clarity toward what matters most.
-          </p>
-          <p className="text-sm max-w-lg mx-auto mb-10 px-4 py-3 rounded-xl" style={{ color: "#746A5A", backgroundColor: "rgba(122,158,135,0.1)", fontStyle: "italic" }}>
-            Tayo is an AI coaching tool. It is not a human coach, therapist, or mental health service.
-          </p>
-
-          <button
-            onClick={() => setLocation("/sign-up")}
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-base font-semibold transition-all hover:scale-105 shadow-lg"
-            style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
-          >
-            Begin your journey <ChevronRight className="w-5 h-5" />
-          </button>
-          <p className="text-xs mt-4" style={{ color: "#9B8E84" }}>Free to get started · No credit card required</p>
-        </motion.section>
-
-        {/* Portrait grid — BIPOC photo placeholders + testimonials */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="mb-24"
-        >
-          <div className="grid grid-cols-3 gap-3 md:gap-4">
-            {[
-              { bg: "rgba(196,98,45,0.09)", border: "rgba(196,98,45,0.2)", caption: "\"I finally understand why I keep getting in my own way.\"", name: "A.M." },
-              { bg: "rgba(122,158,135,0.1)", border: "rgba(122,158,135,0.25)", caption: "\"My dashboard showed me a pattern I'd never seen before.\"", name: "J.O." },
-              { bg: "rgba(212,168,67,0.09)", border: "rgba(212,168,67,0.22)", caption: "\"The session felt more real than years of journaling.\"", name: "S.K." },
-            ].map((person, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {TESTIMONIALS.map((t, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + i * 0.08 }}
-                className="rounded-2xl overflow-hidden"
-                style={{ backgroundColor: "#FFFDF8", border: "1px solid rgba(44,24,16,0.08)" }}
+                transition={{ delay: 0.25 + i * 0.1 }}
+                className="rounded-2xl p-7 flex flex-col justify-between"
+                style={{
+                  backgroundColor: "#FFFDF8",
+                  border: "1px solid rgba(44,24,16,0.1)",
+                  boxShadow: "0 2px 12px rgba(44,24,16,0.04)",
+                }}
               >
-                {/* Photo placeholder */}
-                <div
-                  style={{ height: 140, backgroundColor: person.bg, borderBottom: `1px dashed ${person.border}` }}
-                />
-                <div className="p-4 text-center">
-                  <p className="text-xs leading-relaxed" style={{ color: "#746A5A", fontStyle: "italic" }}>
-                    {person.caption}
-                  </p>
-                  <p className="text-xs mt-1 font-medium" style={{ color: "#9B8E84" }}>{person.name}</p>
-                </div>
+                <p
+                  className="text-sm leading-relaxed mb-5"
+                  style={{ color: "#5C4A3D", fontStyle: "italic", fontFamily: "Georgia, serif" }}
+                >
+                  "{t.quote}"
+                </p>
+                <p
+                  className="text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: "#9B8E84", letterSpacing: "0.08em" }}
+                >
+                  — {t.name}
+                </p>
               </motion.div>
             ))}
           </div>
         </motion.section>
 
-        {/* How it works */}
-        <section id="how-it-works" className="mb-24">
+        {/* ── 3. THE PROBLEM ──────────────────────────────────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="py-16 text-center"
+          style={{ maxWidth: 680, margin: "0 auto" }}
+        >
+          <h2
+            className="font-display text-3xl mb-10"
+            style={{ color: "#2C1810" }}
+          >
+            The problem
+          </h2>
+          <div className="space-y-6">
+            {[
+              "Millennials and Gen Z crave holistic well-being, growth, and self-actualization more than any generation before them. The desire to live intentionally — across career, relationships, health, finances, and identity — is real and widespread.",
+              "Fueling this is unprecedented access to social media, wellness apps, coaching content, and global perspectives. More tools, more advice, more frameworks than ever before.",
+              "But access without clarity isn't freedom — it's overwhelm. The noise is louder than ever, and most people are left reacting to whoever is shouting the loudest rather than acting from a clear internal compass.",
+            ].map((para, i) => (
+              <p key={i} className="text-base leading-relaxed" style={{ color: "#746A5A" }}>
+                {para}
+              </p>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* ── 4. THE SOLUTION ─────────────────────────────────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="py-16 text-center rounded-3xl px-10 mb-8"
+          style={{
+            maxWidth: 680,
+            margin: "0 auto 2rem",
+            background: "linear-gradient(135deg, rgba(122,158,135,0.1) 0%, rgba(196,98,45,0.06) 100%)",
+            border: "1px solid rgba(122,158,135,0.18)",
+          }}
+        >
+          <h2
+            className="font-display text-3xl mb-10"
+            style={{ color: "#2C1810" }}
+          >
+            The solution
+          </h2>
+          <div className="space-y-6">
+            {[
+              "Tayo uses the power of AI and life coaching to help you cut through the noise and pressures of modern society — gaining real clarity into who you truly are, what matters most, and what it means to truly self-actualize.",
+              "Tayo's coaching approach is grounded in ICF Core Competencies and Co-Active Coaching methodology — the gold standard of the professional coaching world — ensuring every conversation is purposeful, empowering, and genuinely transformative.",
+              "Tayo learns and adapts across sessions — building a living portrait of who you are, surfacing culturally relevant resources at the right moments, and tracking your journey over time so growth compounds rather than resets.",
+            ].map((para, i) => (
+              <p key={i} className="text-base leading-relaxed" style={{ color: "#5C4A3D" }}>
+                {para}
+              </p>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* ── 5. HOW TAYO WORKS ───────────────────────────────────────────── */}
+        <section id="how-it-works" className="py-16 mb-8">
           <motion.h2
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
+            transition={{ delay: 0.4 }}
             className="font-display text-3xl text-center mb-12"
             style={{ color: "#2C1810" }}
           >
@@ -301,9 +410,13 @@ export default function Landing() {
                 key={step.label}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + i * 0.1 }}
+                transition={{ delay: 0.45 + i * 0.1 }}
                 className="rounded-2xl p-7 relative"
-                style={{ backgroundColor: "#FFFDF8", border: "1px solid rgba(44,24,16,0.08)", boxShadow: "0 2px 12px rgba(44,24,16,0.04)" }}
+                style={{
+                  backgroundColor: "#FFFDF8",
+                  border: "1px solid rgba(44,24,16,0.08)",
+                  boxShadow: "0 2px 12px rgba(44,24,16,0.04)",
+                }}
               >
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center mb-5"
@@ -324,26 +437,7 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Pull quote */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="rounded-3xl p-12 mb-24 text-center"
-          style={{
-            background: "linear-gradient(135deg, rgba(122,158,135,0.12) 0%, rgba(196,98,45,0.06) 100%)",
-            border: "1px solid rgba(122,158,135,0.2)",
-          }}
-        >
-          <p className="font-display text-2xl md:text-3xl mb-4" style={{ color: "#2C1810", fontStyle: "italic", lineHeight: "1.4" }}>
-            "The most important conversation you'll ever have is the one you have with yourself."
-          </p>
-          <p className="text-sm" style={{ color: "#7A9E87" }}>
-            Tayo gives that conversation structure, depth, and direction.
-          </p>
-        </motion.section>
-
-        {/* Bottom CTA */}
+        {/* ── 6. CLOSING CTA ──────────────────────────────────────────────── */}
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -354,22 +448,22 @@ export default function Landing() {
             Ready to begin?
           </h2>
           <p className="text-base mb-8" style={{ color: "#746A5A" }}>
-            Your first session is free. It takes 25–30 minutes and gives you a lifetime of clarity.
+            Your first session takes 25–30 minutes and gives you a lifetime of clarity.
           </p>
           <button
             onClick={() => setLocation("/sign-up")}
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-base font-semibold transition-all hover:scale-105 shadow-lg"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-base font-semibold transition-all hover:scale-105 shadow-lg mb-4"
             style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
           >
             Begin your journey <ChevronRight className="w-5 h-5" />
           </button>
-          <p className="text-xs mt-4" style={{ color: "#9B8E84" }}>
-            Free to get started · No credit card required ·{" "}
+          <p className="text-xs" style={{ color: "#9B8E84" }}>
             <button onClick={() => setLocation("/faq")} className="underline" style={{ color: "#9B8E84" }}>
-              Have questions?
+              Have questions? Read the FAQ
             </button>
           </p>
         </motion.section>
+
       </main>
     </div>
   );
