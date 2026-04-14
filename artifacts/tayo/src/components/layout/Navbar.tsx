@@ -33,7 +33,7 @@ export function Navbar({ firstName }: NavbarProps) {
         <button
           onClick={() => setLocation("/")}
           className="font-display text-2xl font-semibold"
-          style={{ color: "#C4622D" }}
+          style={{ color: "#2C1810" }}
         >
           Tayo
         </button>
