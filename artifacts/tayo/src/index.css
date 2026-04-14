@@ -39,6 +39,13 @@
   --color-amber: hsl(var(--amber));
   --color-brown: hsl(var(--brown));
 
+  --color-parchment: #F7F0E0;
+  --color-warm-sand: #E8D5A8;
+  --color-warm-black: #1C1812;
+  --color-burnt-orange: #C4622D;
+  --color-amber-gold: #D4A847;
+  --color-deep-teal: #2A6B63;
+
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
   --radius-lg: 1rem;

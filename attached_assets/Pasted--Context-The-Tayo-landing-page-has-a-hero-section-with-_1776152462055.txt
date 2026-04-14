@@ -1,0 +1,75 @@
+**Context:** The Tayo landing page has a hero section with a background image, followed by four redesigned sections (testimonials, problem, solution, how it works) built in a previous prompt. We are now applying the Amber & Teal color system, replacing the hero background image, and increasing font sizes from the testimonials section downward. A wireframe reference has been provided.
+
+**Task:** Three targeted updates to `landing.tsx` and associated styles. Do not change layout, copy, or component structure.
+
+---
+
+**Update 1 — Hero background image replacement:**
+- The new hero image file is `AdobeStock_1926444561.jpeg` — John will upload this directly into `public/assets/` and rename it `hero-bg.jpg`
+- Replace the current hero background image src with `/assets/hero-bg.jpg`
+- Image must be `object-fit: cover`, full viewport width and height (`100vh`), no filters, no dark overlay, no color tint
+- The image is dark and moody — do not add any overlay that dims it further
+- Ensure the parchment highlight boxes over the headline text (`background: rgba(247,240,224,0.90)`) remain in place and are readable against the new image
+
+---
+
+**Update 2 — Amber & Teal color system:**
+
+Apply the following token replacements globally across all four sections below the hero. Do not change the hero section or navbar colors:
+
+- All light section backgrounds: `#F7F0E0` (parchment)
+- Problem section background: `#E8D5A8` (warm sand)
+- Dark solution section background: `#1C1812` (warm black — replaces any prior `#2A1A0E`)
+- Primary brand color: `#C4622D` (burnt orange — no change)
+- Gold accent: `#D4A847` (no change)
+- Teal — replaces sage green (`#8A9A6E`) everywhere it appeared as an interactive or accent color: `#2A6B63`
+- All section divider lines: `rgba(60,40,20,0.10)`
+- Body text dark: `#1C1812`
+- Body text muted: `#5a4a3f`
+
+Specific component color updates:
+- Testimonials: active dot `#2A6B63`, inactive dots `rgba(42,107,99,0.2)`, arrow button hover border and text `#2A6B63`, side card background `rgba(232,213,168,0.45)`, side card border `rgba(42,107,99,0.15)`, center card border `rgba(42,107,99,0.25)`, quote mark color `#2A6B63` at `opacity: 0.2`, attribution color `#2A6B63`
+- Problem: headline accent word `#C4622D`, section eyebrow `#C4622D`
+- Solution (dark section): eyebrow `#D4A847`, headline `#F7F0E0`, body text `rgba(247,240,224,0.62)`, pillar card border `rgba(42,107,99,0.30)`, pillar card background `rgba(247,240,224,0.05)`, pillar icon container background `rgba(42,107,99,0.20)`, all pillar SVG icon strokes `#2A6B63`
+- How it works: step number circle background `#1C1812`, text `#F7F0E0`, connector line `rgba(42,107,99,0.20)`, step divider `rgba(42,107,99,0.12)`, step title `#1C1812`, step description `#7a5c44`, section eyebrow `#C4622D`, headline accent `#C4622D`
+
+If the project uses Tailwind, add to `tailwind.config.js` under `theme.extend.colors`:
+```
+parchment: '#F7F0E0'
+warmSand: '#E8D5A8'
+warmBlack: '#1C1812'
+burntOrange: '#C4622D'
+amberGold: '#D4A847'
+deepTeal: '#2A6B63'
+```
+
+---
+
+**Update 3 — Font size increase from testimonials downward:**
+
+Increase all font sizes in the testimonials, problem, solution, and how-it-works sections by approximately 15–20% relative to current values. Apply these specific sizes:
+
+- Section eyebrow labels (e.g. "What people are saying", "The problem"): `12px` → `13px`
+- Center testimonial quote text: `17px` → `20px`
+- Side testimonial quote text: `13px` → `15px`
+- Attribution lines: `12px` → `13px`
+- Problem headline: `36px` → `42px`
+- Problem body paragraphs: `14px` → `16px`
+- Solution eyebrow: `11px` → `13px`
+- Solution headline: `30px` → `34px`
+- Solution body paragraphs: `14px` → `16px`
+- Pillar card titles: `13px` → `15px`
+- Pillar card descriptions: `12px` → `14px`
+- How it works headline: `32px` → `38px`
+- Step titles: `15px` → `17px`
+- Step descriptions: `13px` → `15px`
+
+Do not change any font sizes in the hero section or navbar.
+
+---
+
+**Security & Privacy:** No user data involved. Hero image served as a static local asset — never fetched from an external URL at runtime. No API calls introduced.
+
+**UI/UX:** Match the attached wireframe. The new photo is dark and warm with rich amber and teal tones — the page palette should feel like it was pulled directly from the scene. Paper grain texture (if applied in a prior prompt) should be preserved on all light sections. No new gradients, shadows, or overlays.
+
+**Verification:** After completing, take a full-page screenshot and confirm: (1) hero shows the new photo, unfiltered and full-bleed, (2) all teal interactive states are `#2A6B63` — no remaining sage green, (3) solution section background is `#1C1812` not `#2A1A0E`, (4) font sizes from testimonials downward are visibly larger than before, (5) hero and navbar font sizes and colors are unchanged, (6) testimonial toggle arrows and dots remain functional.

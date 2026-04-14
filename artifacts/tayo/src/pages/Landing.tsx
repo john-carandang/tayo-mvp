@@ -42,29 +42,29 @@ const TESTIMONIAL_SETS = [
   { left: T_IAN,    center: T_NESTOR, right: T_ANDY   },
 ];
 
-// ── Solution pillar SVG icons ────────────────────────────────────────────────
+// ── Solution pillar SVG icons (teal strokes) ─────────────────────────────────
 const IconLineChart = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-    <polyline points="2,15 6,10 10,12 14,6 18,9" stroke="#D4A847" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <circle cx="18" cy="9" r="2" fill="#D4A847"/>
+    <polyline points="2,15 6,10 10,12 14,6 18,9" stroke="#2A6B63" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <circle cx="18" cy="9" r="2" fill="#2A6B63"/>
   </svg>
 );
 const IconClock = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-    <circle cx="10" cy="10" r="7.5" stroke="#D4A847" strokeWidth="1.5"/>
-    <line x1="10" y1="10" x2="10" y2="6.5" stroke="#D4A847" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="10" y1="10" x2="13" y2="12" stroke="#D4A847" strokeWidth="1.5" strokeLinecap="round"/>
-    <circle cx="10" cy="10" r="1.2" fill="#D4A847"/>
+    <circle cx="10" cy="10" r="7.5" stroke="#2A6B63" strokeWidth="1.5"/>
+    <line x1="10" y1="10" x2="10" y2="6.5" stroke="#2A6B63" strokeWidth="1.5" strokeLinecap="round"/>
+    <line x1="10" y1="10" x2="13" y2="12" stroke="#2A6B63" strokeWidth="1.5" strokeLinecap="round"/>
+    <circle cx="10" cy="10" r="1.2" fill="#2A6B63"/>
   </svg>
 );
 const IconNetwork = () => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-    <circle cx="10" cy="3.5" r="2" fill="#D4A847"/>
-    <circle cx="3"  cy="16" r="2" fill="#D4A847"/>
-    <circle cx="17" cy="16" r="2" fill="#D4A847"/>
-    <line x1="10" y1="5.5" x2="3.8" y2="14" stroke="#D4A847" strokeWidth="1.2" strokeDasharray="2 2" strokeLinecap="round"/>
-    <line x1="3.8" y1="16" x2="15" y2="16" stroke="#D4A847" strokeWidth="1.2" strokeDasharray="2 2"/>
-    <line x1="10" y1="5.5" x2="16.2" y2="14" stroke="#D4A847" strokeWidth="1.2" strokeDasharray="2 2" strokeLinecap="round"/>
+    <circle cx="10" cy="3.5" r="2" fill="#2A6B63"/>
+    <circle cx="3"  cy="16" r="2" fill="#2A6B63"/>
+    <circle cx="17" cy="16" r="2" fill="#2A6B63"/>
+    <line x1="10" y1="5.5" x2="3.8" y2="14" stroke="#2A6B63" strokeWidth="1.2" strokeDasharray="2 2" strokeLinecap="round"/>
+    <line x1="3.8" y1="16" x2="15" y2="16" stroke="#2A6B63" strokeWidth="1.2" strokeDasharray="2 2"/>
+    <line x1="10" y1="5.5" x2="16.2" y2="14" stroke="#2A6B63" strokeWidth="1.2" strokeDasharray="2 2" strokeLinecap="round"/>
   </svg>
 );
 
@@ -153,7 +153,7 @@ export default function Landing() {
 
   if (loading || (user && profileLoading && !remoteProfile)) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F5F0E8" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F7F0E0" }}>
         <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: "rgba(196,98,45,0.2)", borderTopColor: "#C4622D" }} />
       </div>
     );
@@ -162,7 +162,7 @@ export default function Landing() {
   // ─── Logged-in state ───────────────────────────────────────────────────────
   if (user) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: "#F5F0E8" }}>
+      <div className="min-h-screen" style={{ backgroundColor: "#F7F0E0" }}>
         <Navbar firstName={firstName} />
 
         <main className="max-w-3xl mx-auto px-6 py-20 text-center">
@@ -173,28 +173,28 @@ export default function Landing() {
 
             {!hasCompletedOnboarding ? (
               <>
-                <h1 className="font-display text-4xl md:text-5xl mb-4" style={{ color: "#2C1810" }}>
+                <h1 className="font-display text-4xl md:text-5xl mb-4" style={{ color: "#1C1812" }}>
                   {firstName ? `Welcome, ${firstName}.` : "Welcome to Tayo."}
                 </h1>
-                <p className="text-lg mb-10" style={{ color: "#5C4A3D" }}>
+                <p className="text-lg mb-10" style={{ color: "#5a4a3f" }}>
                   Let's set up your coaching experience before your first session.
                 </p>
                 <button
                   onClick={() => setLocation("/disclosures")}
                   className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-semibold text-base transition-all hover:scale-105 shadow-lg"
-                  style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
+                  style={{ backgroundColor: "#C4622D", color: "#F7F0E0" }}
                 >
                   Begin setup <ChevronRight className="w-5 h-5" />
                 </button>
               </>
             ) : sessionLocked ? (
               <>
-                <h1 className="font-display text-4xl md:text-5xl mb-4" style={{ color: "#2C1810" }}>
+                <h1 className="font-display text-4xl md:text-5xl mb-4" style={{ color: "#1C1812" }}>
                   {firstName ? `Good to see you, ${firstName}.` : "Good to see you."}
                 </h1>
-                <p className="text-lg mb-2" style={{ color: "#5C4A3D" }}>
+                <p className="text-lg mb-2" style={{ color: "#5a4a3f" }}>
                   Your next session unlocks in{" "}
-                  <span className="font-semibold" style={{ color: "#2C1810" }}>
+                  <span className="font-semibold" style={{ color: "#1C1812" }}>
                     {daysUntilUnlock} {daysUntilUnlock === 1 ? "day" : "days"}.
                   </span>
                 </p>
@@ -205,7 +205,7 @@ export default function Landing() {
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <div
                     className="flex items-center gap-3 px-6 py-3.5 rounded-full text-sm font-medium"
-                    style={{ backgroundColor: "rgba(44,24,16,0.06)", color: "#746A5A" }}
+                    style={{ backgroundColor: "rgba(28,24,18,0.06)", color: "#746A5A" }}
                   >
                     <Lock className="w-4 h-4" />
                     <span>Session {nextSessionNumber} locked</span>
@@ -216,7 +216,7 @@ export default function Landing() {
                   <button
                     onClick={() => setLocation("/next-moves")}
                     className="px-6 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105"
-                    style={{ backgroundColor: "#7A9E87", color: "#F5F0E8" }}
+                    style={{ backgroundColor: "#2A6B63", color: "#F7F0E0" }}
                   >
                     View Next Moves
                   </button>
@@ -234,12 +234,12 @@ export default function Landing() {
               </>
             ) : (
               <>
-                <h1 className="font-display text-4xl md:text-5xl mb-4" style={{ color: "#2C1810" }}>
+                <h1 className="font-display text-4xl md:text-5xl mb-4" style={{ color: "#1C1812" }}>
                   {firstName
                     ? `${sessionCount === 0 ? "Ready to begin" : "Welcome back"}, ${firstName}.`
                     : (sessionCount === 0 ? "Ready to begin." : "Welcome back.")}
                 </h1>
-                <p className="text-lg mb-10" style={{ color: "#5C4A3D" }}>
+                <p className="text-lg mb-10" style={{ color: "#5a4a3f" }}>
                   {sessionCount === 0
                     ? "Your first session is ready. Find a quiet space and give yourself 25–30 minutes."
                     : `Session ${nextSessionNumber} is ready. ${coachName ? `${coachName} is waiting.` : "Let's continue."}`}
@@ -248,7 +248,7 @@ export default function Landing() {
                 <button
                   onClick={() => setLocation("/intake")}
                   className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-semibold text-base transition-all hover:scale-105 shadow-lg mb-6"
-                  style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
+                  style={{ backgroundColor: "#C4622D", color: "#F7F0E0" }}
                 >
                   {sessionCount === 0
                     ? `Begin Session 1${coachName ? ` with ${coachName}` : ""}`
@@ -277,26 +277,16 @@ export default function Landing() {
   const tSet = TESTIMONIAL_SETS[tIdx];
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F5F0E8" }}>
+    <div className="min-h-screen" style={{ backgroundColor: "#F7F0E0" }}>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden" style={{ minHeight: "100vh" }}>
+        {/* Full-bleed hero image — no filters, no overlay */}
         <img
-          src="https://images.unsplash.com/photo-1543269865-cbf427effbad?w=1600&auto=format&fit=crop&q=80"
-          onError={(e) => { (e.target as HTMLImageElement).src = `${BASE_URL}/hero-bg.jpg`; }}
-          alt="Diverse friends relaxing in a warm cozy living room"
+          src={`${BASE_URL}/assets/hero-bg.jpg`}
+          alt="Friends laughing together in a warm, moody setting"
           className="absolute inset-0 w-full h-full"
-          style={{
-            objectFit: "cover",
-            objectPosition: "center 40%",
-            filter: "sepia(0.22) brightness(0.88) saturate(1.25) contrast(1.04)",
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.28) 22%, rgba(0,0,0,0.32) 55%, rgba(0,0,0,0.68) 80%, rgba(0,0,0,0.88) 100%)",
-          }}
+          style={{ objectFit: "cover", objectPosition: "center 35%" }}
         />
 
         {/* Transparent nav */}
@@ -319,31 +309,65 @@ export default function Landing() {
           <button
             onClick={() => setLocation("/sign-up")}
             className="px-5 py-2 rounded-full font-semibold text-sm transition-all hover:scale-105 shadow-md"
-            style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
+            style={{ backgroundColor: "#C4622D", color: "#F7F0E0" }}
           >
             Sign up / Log in
           </button>
         </nav>
 
-        {/* Hero text */}
-        <div className="relative z-20 flex flex-col items-center justify-center text-center px-6" style={{ minHeight: "calc(100vh - 72px)", paddingBottom: "7rem" }}>
+        {/* Hero text — parchment highlight boxes on each line */}
+        <div
+          className="relative z-20 flex flex-col items-center justify-center text-center px-6"
+          style={{ minHeight: "calc(100vh - 72px)", paddingBottom: "7rem" }}
+        >
           <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, ease: "easeOut" }}>
             <h1
               className="font-display mb-6"
-              style={{ fontSize: "clamp(3.2rem, 9vw, 6rem)", lineHeight: 1.04, fontWeight: 800, color: "#FFFFFF", textShadow: "0 2px 32px rgba(0,0,0,0.22), 0 1px 4px rgba(0,0,0,0.18)", letterSpacing: "-0.01em" }}
+              style={{ fontSize: "clamp(3.2rem, 9vw, 6rem)", lineHeight: 1.18, fontWeight: 800, letterSpacing: "-0.01em" }}
             >
-              Drown out the noise.<br />Find your signal.
+              <span
+                style={{
+                  backgroundColor: "rgba(247,240,224,0.90)",
+                  color: "#1C1812",
+                  padding: "4px 18px",
+                  display: "inline",
+                  boxDecorationBreak: "clone",
+                  WebkitBoxDecorationBreak: "clone",
+                  borderRadius: 3,
+                }}
+              >
+                Drown out the noise.
+              </span>
+              <br />
+              <span
+                style={{
+                  backgroundColor: "rgba(247,240,224,0.90)",
+                  color: "#1C1812",
+                  padding: "4px 18px",
+                  display: "inline",
+                  boxDecorationBreak: "clone",
+                  WebkitBoxDecorationBreak: "clone",
+                  borderRadius: 3,
+                }}
+              >
+                Find your signal.
+              </span>
             </h1>
             <p
               className="mb-10 mx-auto leading-relaxed"
-              style={{ maxWidth: 480, fontSize: "clamp(0.95rem, 1.8vw, 1.1rem)", color: "rgba(255,253,248,0.9)", textShadow: "0 1px 10px rgba(0,0,0,0.28)" }}
+              style={{
+                maxWidth: 480,
+                fontSize: "clamp(0.95rem, 1.8vw, 1.1rem)",
+                color: "rgba(255,253,248,0.9)",
+                textShadow: "0 1px 10px rgba(0,0,0,0.38)",
+              }}
             >
               Tayo is an AI coaching platform that helps you cut through the noise of modern life and tune into who you truly are and what truly matters most.
             </p>
             <button
               onClick={() => setLocation("/sign-up")}
               className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-base font-semibold transition-all hover:scale-105"
-              style={{ backgroundColor: "#C4622D", color: "#F5F0E8", boxShadow: "0 6px 28px rgba(0,0,0,0.28)" }}
+              style={{ backgroundColor: "#C4622D", color: "#F7F0E0", boxShadow: "0 6px 28px rgba(0,0,0,0.32)" }}
             >
               Begin your journey <ChevronRight className="w-5 h-5" />
             </button>
@@ -352,8 +376,8 @@ export default function Landing() {
       </section>
 
       {/* ── TESTIMONIALS ─────────────────────────────────────────────────── */}
-      <section style={{ backgroundColor: "#F5F0E8", padding: "72px 24px" }}>
-        <p className="text-center text-xs font-semibold uppercase tracking-widest mb-10" style={{ color: "#C4622D", letterSpacing: "0.14em" }}>
+      <section style={{ backgroundColor: "#F7F0E0", padding: "72px 24px" }}>
+        <p className="text-center font-semibold uppercase tracking-widest mb-10" style={{ fontSize: 13, color: "#C4622D", letterSpacing: "0.14em" }}>
           What people are saying
         </p>
 
@@ -367,46 +391,67 @@ export default function Landing() {
             gap: 16,
             opacity: tVisible ? 1 : 0,
             transform: tVisible ? "translateY(0)" : "translateY(4px)",
-            transition: "opacity 200ms ease, transform 200ms ease",
+            transition: "opacity 220ms ease, transform 220ms ease",
           }}
         >
           {/* Left side card */}
           <div
             className="rounded-xl p-5 flex flex-col justify-between"
-            style={{ backgroundColor: "rgba(245,240,232,0.7)", border: "0.5px solid rgba(60,40,20,0.15)", minHeight: 180 }}
+            style={{
+              backgroundColor: "rgba(232,213,168,0.45)",
+              border: "0.5px solid rgba(42,107,99,0.15)",
+              minHeight: 180,
+            }}
           >
-            <p className="text-xs leading-relaxed" style={{ color: "#5C4A3D", fontStyle: "italic", fontFamily: "Georgia, serif" }}>
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: "#5a4a3f", fontStyle: "italic", fontFamily: "Georgia, serif" }}>
               "{tSet.left.quote}"
             </p>
-            <p className="text-xs mt-3 font-medium" style={{ color: "#C4622D" }}>— {tSet.left.name}</p>
+            <p style={{ fontSize: 13, marginTop: 12, fontWeight: 500, color: "#2A6B63" }}>— {tSet.left.name}</p>
           </div>
 
           {/* Center featured card */}
           <div
             className="rounded-xl p-8 flex flex-col justify-between"
-            style={{ backgroundColor: "#FFFFFF", border: "0.5px solid rgba(196,98,45,0.25)", position: "relative" }}
+            style={{
+              backgroundColor: "#FFFFFF",
+              border: "0.5px solid rgba(42,107,99,0.25)",
+              position: "relative",
+            }}
           >
-            <div style={{ fontSize: 48, lineHeight: 1, color: "#C4622D", opacity: 0.25, fontFamily: "Georgia, serif", position: "absolute", top: 20, left: 24, userSelect: "none" }}>
+            <div
+              style={{
+                fontSize: 56,
+                lineHeight: 1,
+                color: "#2A6B63",
+                opacity: 0.20,
+                fontFamily: "Georgia, serif",
+                position: "absolute",
+                top: 20,
+                left: 24,
+                userSelect: "none",
+              }}
+            >
               "
             </div>
-            <p
-              className="leading-relaxed pt-6"
-              style={{ fontSize: 17, color: "#3D2B1F", fontFamily: "Georgia, serif" }}
-            >
+            <p style={{ fontSize: 20, lineHeight: 1.65, color: "#1C1812", fontFamily: "Georgia, serif", paddingTop: 24 }}>
               {tSet.center.quote}
             </p>
-            <p className="mt-5 text-xs font-medium" style={{ color: "#C4622D" }}>— {tSet.center.name}</p>
+            <p style={{ marginTop: 20, fontSize: 13, fontWeight: 500, color: "#2A6B63" }}>— {tSet.center.name}</p>
           </div>
 
           {/* Right side card */}
           <div
             className="rounded-xl p-5 flex flex-col justify-between"
-            style={{ backgroundColor: "rgba(245,240,232,0.7)", border: "0.5px solid rgba(60,40,20,0.15)", minHeight: 180 }}
+            style={{
+              backgroundColor: "rgba(232,213,168,0.45)",
+              border: "0.5px solid rgba(42,107,99,0.15)",
+              minHeight: 180,
+            }}
           >
-            <p className="text-xs leading-relaxed" style={{ color: "#5C4A3D", fontStyle: "italic", fontFamily: "Georgia, serif" }}>
+            <p style={{ fontSize: 15, lineHeight: 1.75, color: "#5a4a3f", fontStyle: "italic", fontFamily: "Georgia, serif" }}>
               "{tSet.right.quote}"
             </p>
-            <p className="text-xs mt-3 font-medium" style={{ color: "#C4622D" }}>— {tSet.right.name}</p>
+            <p style={{ fontSize: 13, marginTop: 12, fontWeight: 500, color: "#2A6B63" }}>— {tSet.right.name}</p>
           </div>
         </div>
 
@@ -414,8 +459,16 @@ export default function Landing() {
         <div className="flex items-center justify-center gap-4 mt-8">
           <button
             onClick={() => goToSlide((tIdx + TESTIMONIAL_SETS.length - 1) % TESTIMONIAL_SETS.length)}
-            className="flex items-center justify-center rounded-full transition-all hover:border-[#C4622D] hover:text-[#C4622D]"
-            style={{ width: 28, height: 28, border: "0.5px solid rgba(60,40,20,0.2)", color: "#5C4A3D", backgroundColor: "transparent" }}
+            className="flex items-center justify-center rounded-full transition-all"
+            style={{
+              width: 28, height: 28,
+              border: "0.5px solid rgba(42,107,99,0.25)",
+              color: "#5C4A3D",
+              backgroundColor: "transparent",
+              cursor: "pointer",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2A6B63"; (e.currentTarget as HTMLElement).style.color = "#2A6B63"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(42,107,99,0.25)"; (e.currentTarget as HTMLElement).style.color = "#5C4A3D"; }}
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.5 2L3.5 5L6.5 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
@@ -427,17 +480,25 @@ export default function Landing() {
                 width: 7,
                 height: 7,
                 borderRadius: "50%",
-                backgroundColor: i === tIdx ? "#C4622D" : "rgba(196,98,45,0.25)",
+                backgroundColor: i === tIdx ? "#2A6B63" : "rgba(42,107,99,0.2)",
                 border: "none",
                 cursor: "pointer",
-                transition: "background-color 200ms",
+                transition: "background-color 220ms",
               }}
             />
           ))}
           <button
             onClick={() => goToSlide((tIdx + 1) % TESTIMONIAL_SETS.length)}
-            className="flex items-center justify-center rounded-full transition-all hover:border-[#C4622D] hover:text-[#C4622D]"
-            style={{ width: 28, height: 28, border: "0.5px solid rgba(60,40,20,0.2)", color: "#5C4A3D", backgroundColor: "transparent" }}
+            className="flex items-center justify-center rounded-full transition-all"
+            style={{
+              width: 28, height: 28,
+              border: "0.5px solid rgba(42,107,99,0.25)",
+              color: "#5C4A3D",
+              backgroundColor: "transparent",
+              cursor: "pointer",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2A6B63"; (e.currentTarget as HTMLElement).style.color = "#2A6B63"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(42,107,99,0.25)"; (e.currentTarget as HTMLElement).style.color = "#5C4A3D"; }}
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
@@ -445,14 +506,14 @@ export default function Landing() {
       </section>
 
       {/* ── THE PROBLEM ──────────────────────────────────────────────────── */}
-      <section style={{ backgroundColor: "#EDE8DE", padding: "64px 48px" }}>
+      <section style={{ backgroundColor: "#E8D5A8", padding: "64px 48px" }}>
         <div style={{ maxWidth: 1040, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 2fr", gap: 64, alignItems: "start" }}>
           {/* Left — eyebrow + headline */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: "#C4622D", letterSpacing: "0.12em" }}>
+            <p className="font-semibold uppercase tracking-widest mb-5" style={{ fontSize: 13, color: "#C4622D", letterSpacing: "0.12em" }}>
               The problem
             </p>
-            <h2 className="font-display" style={{ fontSize: "clamp(1.8rem, 3vw, 2.4rem)", lineHeight: 1.15, color: "#2C1810" }}>
+            <h2 className="font-display" style={{ fontSize: "clamp(2rem, 3.5vw, 2.6rem)", lineHeight: 1.15, color: "#1C1812" }}>
               More tools,<br />more advice,{" "}
               <span style={{ color: "#C4622D" }}>more overwhelm.</span>
             </h2>
@@ -460,13 +521,13 @@ export default function Landing() {
 
           {/* Right — body copy */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <p style={{ fontSize: 14, lineHeight: 1.8, color: "#5a4a3f" }}>
+            <p style={{ fontSize: 16, lineHeight: 1.8, color: "#5a4a3f" }}>
               Millennials and Gen Z crave holistic well-being and self-actualization more than any generation before them — across career, relationships, health, finances, and beyond.
             </p>
-            <p style={{ fontSize: 14, lineHeight: 1.8, color: "#5a4a3f" }}>
+            <p style={{ fontSize: 16, lineHeight: 1.8, color: "#5a4a3f" }}>
               But the explosion of wellness apps, social media advice, self-help content, and coaching frameworks hasn't made things clearer. It's made them louder. People are pulled in more directions than ever, reacting to the noisiest voices rather than their own.
             </p>
-            <p style={{ fontSize: 14, lineHeight: 1.8, color: "#3D2B1F", fontWeight: 500 }}>
+            <p style={{ fontSize: 16, lineHeight: 1.8, color: "#1C1812", fontWeight: 500 }}>
               Access without clarity isn't freedom — it's overwhelm. What's missing is a way to actually cut through.
             </p>
           </div>
@@ -474,18 +535,18 @@ export default function Landing() {
       </section>
 
       {/* ── THE SOLUTION ─────────────────────────────────────────────────── */}
-      <section style={{ backgroundColor: "#2A1A0E", padding: "72px 48px" }}>
+      <section style={{ backgroundColor: "#1C1812", padding: "72px 48px" }}>
         <div style={{ maxWidth: 680, margin: "0 auto", textAlign: "center" }}>
-          <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: "#D4A847", letterSpacing: "0.12em" }}>
+          <p className="font-semibold uppercase tracking-widest mb-5" style={{ fontSize: 13, color: "#D4A847", letterSpacing: "0.12em" }}>
             The solution
           </p>
-          <h2 className="font-display mb-7" style={{ fontSize: "clamp(1.5rem, 2.5vw, 1.9rem)", lineHeight: 1.3, color: "#F5F0E8" }}>
+          <h2 className="font-display mb-7" style={{ fontSize: "clamp(1.7rem, 2.8vw, 2.1rem)", lineHeight: 1.3, color: "#F7F0E0" }}>
             A coaching companion that learns who you are — and helps you grow from there.
           </h2>
-          <p style={{ fontSize: 14, lineHeight: 1.8, color: "rgba(245,240,232,0.65)", marginBottom: 14 }}>
+          <p style={{ fontSize: 16, lineHeight: 1.8, color: "rgba(247,240,224,0.62)", marginBottom: 14 }}>
             Tayo uses the power of AI and life coaching to help you cut through the noise and pressures of modern society — gaining real clarity into who you truly are, what matters most, and what it means to truly self-actualize.
           </p>
-          <p style={{ fontSize: 14, lineHeight: 1.8, color: "rgba(245,240,232,0.65)", marginBottom: 36 }}>
+          <p style={{ fontSize: 16, lineHeight: 1.8, color: "rgba(247,240,224,0.62)", marginBottom: 36 }}>
             Grounded in ICF Core Competencies and Co-Active Coaching methodology — not a chatbot, not a journal, not a quiz.
           </p>
 
@@ -499,18 +560,18 @@ export default function Landing() {
               <div
                 key={title}
                 style={{
-                  backgroundColor: "rgba(245,240,232,0.06)",
-                  border: "0.5px solid rgba(245,240,232,0.12)",
+                  backgroundColor: "rgba(247,240,224,0.05)",
+                  border: "0.5px solid rgba(42,107,99,0.30)",
                   borderRadius: 10,
                   padding: "22px 18px",
                   textAlign: "left",
                 }}
               >
-                <div style={{ width: 36, height: 36, backgroundColor: "rgba(196,98,45,0.2)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+                <div style={{ width: 36, height: 36, backgroundColor: "rgba(42,107,99,0.20)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
                   <Icon />
                 </div>
-                <p style={{ fontSize: 13, fontWeight: 500, color: "#F5F0E8", marginBottom: 6 }}>{title}</p>
-                <p style={{ fontSize: 12, color: "rgba(245,240,232,0.5)", lineHeight: 1.6 }}>{desc}</p>
+                <p style={{ fontSize: 15, fontWeight: 500, color: "#F7F0E0", marginBottom: 6 }}>{title}</p>
+                <p style={{ fontSize: 14, color: "rgba(247,240,224,0.50)", lineHeight: 1.6 }}>{desc}</p>
               </div>
             ))}
           </div>
@@ -518,15 +579,15 @@ export default function Landing() {
       </section>
 
       {/* ── HOW TAYO WORKS ───────────────────────────────────────────────── */}
-      <section id="how-it-works" style={{ backgroundColor: "#F5F0E8", padding: "72px 48px" }}>
+      <section id="how-it-works" style={{ backgroundColor: "#F7F0E0", padding: "72px 48px" }}>
         <div style={{ maxWidth: 1040, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 2fr", gap: 64, alignItems: "start" }}>
 
           {/* Left — eyebrow + headline */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: "#C4622D", letterSpacing: "0.12em" }}>
+            <p className="font-semibold uppercase tracking-widest mb-5" style={{ fontSize: 13, color: "#C4622D", letterSpacing: "0.12em" }}>
               How it works
             </p>
-            <h2 className="font-display" style={{ fontSize: "clamp(1.7rem, 2.8vw, 2.2rem)", lineHeight: 1.2, color: "#2C1810" }}>
+            <h2 className="font-display" style={{ fontSize: "clamp(1.9rem, 3.2vw, 2.4rem)", lineHeight: 1.2, color: "#1C1812" }}>
               From open conversation to{" "}
               <span style={{ color: "#C4622D" }}>clear direction.</span>
             </h2>
@@ -541,7 +602,7 @@ export default function Landing() {
                   display: "flex",
                   gap: 18,
                   paddingBottom: i < HOW_STEPS.length - 1 ? 28 : 0,
-                  borderBottom: i < HOW_STEPS.length - 1 ? "0.5px solid rgba(60,40,20,0.1)" : "none",
+                  borderBottom: i < HOW_STEPS.length - 1 ? "0.5px solid rgba(42,107,99,0.12)" : "none",
                   marginBottom: i < HOW_STEPS.length - 1 ? 28 : 0,
                   position: "relative",
                 }}
@@ -552,8 +613,8 @@ export default function Landing() {
                     style={{
                       width: 36, height: 36,
                       borderRadius: "50%",
-                      backgroundColor: "#2A1A0E",
-                      color: "#F5F0E8",
+                      backgroundColor: "#1C1812",
+                      color: "#F7F0E0",
                       fontSize: 13,
                       fontWeight: 600,
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -563,14 +624,14 @@ export default function Landing() {
                     {i + 1}
                   </div>
                   {i < HOW_STEPS.length - 1 && (
-                    <div style={{ width: 1, flex: 1, backgroundColor: "rgba(60,40,20,0.15)", marginTop: 6 }} />
+                    <div style={{ width: 1, flex: 1, backgroundColor: "rgba(42,107,99,0.20)", marginTop: 6 }} />
                   )}
                 </div>
 
                 {/* Content */}
                 <div style={{ paddingTop: 6 }}>
-                  <p style={{ fontSize: 15, fontWeight: 500, color: "#2A1A0E", marginBottom: 6 }}>{step.title}</p>
-                  <p style={{ fontSize: 13, lineHeight: 1.7, color: "#7a5c44" }}>{step.desc}</p>
+                  <p style={{ fontSize: 17, fontWeight: 500, color: "#1C1812", marginBottom: 6 }}>{step.title}</p>
+                  <p style={{ fontSize: 15, lineHeight: 1.7, color: "#7a5c44" }}>{step.desc}</p>
                 </div>
               </div>
             ))}
@@ -579,8 +640,8 @@ export default function Landing() {
       </section>
 
       {/* ── CLOSING CTA ──────────────────────────────────────────────────── */}
-      <section className="text-center" style={{ backgroundColor: "#F5F0E8", padding: "64px 24px 96px" }}>
-        <h2 className="font-display text-3xl mb-4" style={{ color: "#2C1810" }}>
+      <section className="text-center" style={{ backgroundColor: "#F7F0E0", padding: "64px 24px 96px" }}>
+        <h2 className="font-display text-3xl mb-4" style={{ color: "#1C1812" }}>
           Ready to begin?
         </h2>
         <p className="text-base mb-8 max-w-md mx-auto" style={{ color: "#746A5A" }}>
@@ -589,7 +650,7 @@ export default function Landing() {
         <button
           onClick={() => setLocation("/sign-up")}
           className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-base font-semibold transition-all hover:scale-105 shadow-lg mb-4"
-          style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
+          style={{ backgroundColor: "#C4622D", color: "#F7F0E0" }}
         >
           Begin your journey <ChevronRight className="w-5 h-5" />
         </button>
