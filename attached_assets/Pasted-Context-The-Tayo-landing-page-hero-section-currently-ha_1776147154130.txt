@@ -1,0 +1,36 @@
+Context: The Tayo landing page hero section currently has a centered nav logo, and a right-aligned semi-transparent floating card containing the headline and CTA. The target design (reference image provided) centers all text directly over the hero image using individual per-line highlight boxes — no floating card. The background image also needs to be replaced with a higher-resolution version.
+Task: Redesign the logged-out hero section of landing.tsx (or equivalent landing page component) to precisely match the reference layout described below. Do not change any other sections (testimonials, problem/solution, how it works, footer).
+Requirements:
+
+Navbar:
+
+Logo "tayo" or wordmark: position: absolute or fixed, top-left — left: 24px, vertically centered in nav bar, color #C4622D (burnt orange), lowercase, existing font/weight
+Nav links ("How it works", "FAQ"): centered horizontally in the navbar
+"Sign up / Log in" pill button: top-right, existing burnt orange style — do not move or restyle
+Remove any existing centering applied to the logo
+
+
+Hero image:
+
+Replace the current hero background image with the uploaded file living-room-hires.jpg (John will upload this — see note below)
+Image must be object-fit: cover, full viewport width and height (100vh), no filters, no dark overlay
+Do not compress or resize; serve at original resolution
+
+
+Hero text overlay — centered, full-width:
+
+Remove the existing floating card container entirely (delete the div with semi-transparent background and shadow)
+Replace with a centered flex column div, absolutely positioned over the image, horizontally and vertically centered (top: 50%, left: 50%, transform: translate(-50%, -50%))
+Headline line 1: Large display serif font (~72px desktop / 48px mobile), text: "Know yourself." — wrapped in a tight inline highlight box with background: rgba(245,240,232,0.88), padding: 4px 16px, border-radius: 4px, displayed as inline-block
+Headline line 2: Same style as line 1, text: "Shape what's next." — separate line, same highlight box treatment
+Each headline line must be its own element so highlight boxes hug only the text width, not full-width
+Subheading: 15–16px, centered, max-width 480px, color #3D2B1F, margin-top: 16px, no highlight box — text: "Tayo is an AI coaching companion that helps you map your life, understand your patterns, and move with clarity toward what matters next."
+Disclaimer badge: Small pill/badge, centered, background: rgba(245,240,232,0.85), border-radius: 20px, padding: 8px 20px, font-size: 13px — text: "Tayo is an AI coaching tool — not a human coach, therapist, or mental health provider."; the word "Tayo" in this badge should be color: #C4622D
+CTA button: Burnt orange pill button background: #C4622D, white text, centered below disclaimer, text: "Begin your journey →", existing button styles
+Sub-CTA line: Small centered text below button: "Free to get started · No credit card required", font-size: 12px, color: #5a4a3f
+
+
+Spacing: 16px gap between headline lines; 20px between headline block and subheading; 16px between subheading and badge; 16px between badge and button; 10px between button and sub-CTA line
+
+Security & Privacy: No user data involved in this change. Ensure the new image asset is committed to the repo and served as a static file — do not fetch from an external URL at runtime.
+UI/UX: The result must feel like the reference image — warm, full-bleed, human photography with clean centered typography floating over it. No dark overlays. No card shadows. The living room photo should be fully visible and vibrant.

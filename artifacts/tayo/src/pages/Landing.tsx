@@ -234,22 +234,91 @@ export default function Landing() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F5F0E8" }}>
 
-      {/* ── Zone 1: Beige nav bar — sits above the hero in normal document flow ── */}
-      <Navbar />
+      {/* ── Zone 1: Beige nav — logo absolute left, links truly centered, button absolute right ── */}
+      <header
+        style={{
+          position: "relative",
+          backgroundColor: "#F5F0E8",
+          borderBottom: "1px solid rgba(44,24,16,0.07)",
+          height: "60px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0 24px",
+        }}
+      >
+        {/* Logo — absolute left */}
+        <button
+          onClick={() => setLocation("/")}
+          className="font-display font-semibold"
+          style={{
+            position: "absolute",
+            left: "24px",
+            fontSize: "20px",
+            color: "#C4622D",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          tayo
+        </button>
 
-      {/* ── Zone 2: Hero — full-width image + centered semi-transparent text block ── */}
+        {/* Nav links — truly centered */}
+        <nav className="hidden md:flex items-center gap-8">
+          <button
+            onClick={() => {
+              document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="text-sm font-medium transition-opacity hover:opacity-70"
+            style={{ color: "#5C4A3D" }}
+          >
+            How it works
+          </button>
+          <button
+            onClick={() => setLocation("/faq")}
+            className="text-sm font-medium transition-opacity hover:opacity-70"
+            style={{ color: "#5C4A3D" }}
+          >
+            FAQ
+          </button>
+        </nav>
+
+        {/* Sign up button — absolute right */}
+        <button
+          onClick={() => setLocation("/sign-up")}
+          className="transition-all hover:scale-105"
+          style={{
+            position: "absolute",
+            right: "24px",
+            backgroundColor: "#C4622D",
+            color: "#F5F0E8",
+            borderRadius: "9999px",
+            padding: "8px 20px",
+            fontWeight: 600,
+            fontSize: "14px",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          Sign up / Log in
+        </button>
+      </header>
+
+      {/* ── Zone 2: Hero — 100vh image, per-line highlight boxes, no overlay ── */}
       <section
         style={{
           width: "100%",
-          height: "85vh",
+          height: "100vh",
           position: "relative",
           overflow: "hidden",
         }}
       >
-        {/* Hero image — <img> tag, no filters, no overlay, full warmth */}
+        {/* Hero image — <img> tag, no filters, no dark overlay, full warmth */}
         <img
-          src={`${BASE_URL}/hero-bg.jpg`}
-          alt="Four BIPOC young adults relaxing in a warm retro living room"
+          src={`${BASE_URL}/living-room-hires.png`}
+          alt="Five BIPOC young adults relaxing in a warm retro living room"
           style={{
             width: "100%",
             height: "100%",
@@ -259,50 +328,95 @@ export default function Landing() {
           }}
         />
 
-        {/* Centered semi-transparent beige text block */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+        {/* Centering shell — static, never animated so transform is never overridden */}
+        <div
           style={{
             position: "absolute",
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            background: "rgba(245, 240, 232, 0.88)",
-            padding: "32px 48px",
-            borderRadius: "4px",
+            width: "100%",
+            padding: "0 24px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
             textAlign: "center",
-            maxWidth: "640px",
-            width: "90%",
           }}
         >
-          <h1
-            className="font-display"
-            style={{
-              fontSize: "clamp(36px, 5vw, 60px)",
-              fontWeight: 700,
-              color: "#1C1008",
-              lineHeight: 1.15,
-              margin: 0,
-            }}
-          >
-            Drown out the noise.<br />Find your signal.
-          </h1>
+        {/* Animated inner wrapper */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}
+        >
+          {/* Headline line 1 — tight highlight box hugs text width */}
+          <div style={{ marginBottom: "16px" }}>
+            <span
+              className="font-display"
+              style={{
+                display: "inline-block",
+                background: "rgba(245,240,232,0.88)",
+                padding: "4px 16px",
+                borderRadius: "4px",
+                fontSize: "clamp(48px, 7vw, 72px)",
+                fontWeight: 700,
+                color: "#1C1008",
+                lineHeight: 1.15,
+              }}
+            >
+              Know yourself.
+            </span>
+          </div>
 
+          {/* Headline line 2 — same highlight treatment */}
+          <div>
+            <span
+              className="font-display"
+              style={{
+                display: "inline-block",
+                background: "rgba(245,240,232,0.88)",
+                padding: "4px 16px",
+                borderRadius: "4px",
+                fontSize: "clamp(48px, 7vw, 72px)",
+                fontWeight: 700,
+                color: "#1C1008",
+                lineHeight: 1.15,
+              }}
+            >
+              Shape what's next.
+            </span>
+          </div>
+
+          {/* Subheading — no highlight box */}
           <p
             style={{
               fontSize: "15px",
               color: "#3D2B1F",
-              marginTop: "12px",
+              marginTop: "20px",
               lineHeight: 1.7,
               maxWidth: "480px",
-              margin: "12px auto 0",
             }}
           >
-            Tayo is an AI coaching platform that helps you cut through the noise of modern life and tune into who you truly are and what truly matters most.
+            Tayo is an AI coaching companion that helps you map your life, understand your patterns, and move with clarity toward what matters next.
           </p>
 
+          {/* Disclaimer badge */}
+          <div
+            style={{
+              display: "inline-block",
+              background: "rgba(245,240,232,0.85)",
+              borderRadius: "20px",
+              padding: "8px 20px",
+              fontSize: "13px",
+              marginTop: "16px",
+              color: "#3D2B1F",
+            }}
+          >
+            <span style={{ color: "#C4622D" }}>Tayo</span> is an AI coaching tool — not a human coach, therapist, or mental health provider.
+          </div>
+
+          {/* CTA button */}
           <button
             onClick={() => setLocation("/sign-up")}
             className="transition-all hover:scale-105"
@@ -312,7 +426,7 @@ export default function Landing() {
               color: "#FFFFFF",
               borderRadius: "24px",
               padding: "12px 28px",
-              marginTop: "20px",
+              marginTop: "16px",
               fontWeight: 600,
               fontSize: "15px",
               border: "none",
@@ -321,7 +435,13 @@ export default function Landing() {
           >
             Begin your journey →
           </button>
+
+          {/* Sub-CTA */}
+          <p style={{ marginTop: "10px", fontSize: "12px", color: "#5a4a3f" }}>
+            Free to get started · No credit card required
+          </p>
         </motion.div>
+        </div>
       </section>
 
       {/* Rest of page — constrained */}
