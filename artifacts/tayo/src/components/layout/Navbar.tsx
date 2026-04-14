@@ -4,13 +4,16 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface NavbarProps {
   firstName?: string;
+  variant?: "transparent";
 }
 
-export function Navbar({ firstName }: NavbarProps) {
+export function Navbar({ firstName, variant }: NavbarProps) {
   const [, setLocation] = useLocation();
   const { user, signOut } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const isTransparent = variant === "transparent";
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -24,144 +27,209 @@ export function Navbar({ firstName }: NavbarProps) {
 
   const initial = (firstName ?? "U")[0].toUpperCase();
 
+  const logoColor = isTransparent ? "#F7F0E0" : "#C4622D";
+  const linkColor = isTransparent ? "#F7F0E0" : "#1C1812";
+  const linkHoverColor = isTransparent ? "rgba(247,240,224,0.7)" : "rgba(28,24,18,0.5)";
+
   return (
     <header
-      className="w-full px-6 py-4 sticky top-0 z-40"
-      style={{ backgroundColor: "#F5F0E8", borderBottom: "1px solid rgba(44,24,16,0.07)" }}
+      style={{
+        width: "100%",
+        padding: "16px 24px",
+        position: isTransparent ? "relative" : "sticky",
+        top: 0,
+        zIndex: isTransparent ? 30 : 40,
+        backgroundColor: isTransparent ? "transparent" : "#F7F0E0",
+        borderBottom: isTransparent ? "none" : "1px solid rgba(42,107,99,0.10)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
     >
-      <div className="max-w-5xl mx-auto flex items-center justify-between">
-        <button
-          onClick={() => setLocation("/")}
-          className="font-display text-2xl font-semibold"
-          style={{ color: "#2C1810" }}
-        >
-          Tayo
-        </button>
+      {/* Logo */}
+      <button
+        onClick={() => setLocation("/")}
+        style={{
+          fontFamily: "var(--font-display)",
+          fontSize: 20,
+          fontWeight: 600,
+          color: user && !isTransparent ? "#2C1810" : logoColor,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: 0,
+        }}
+      >
+        Tayo
+      </button>
 
-        <nav className="hidden md:flex items-center gap-8">
-          {user ? (
-            <>
-              <button
-                onClick={() => setLocation("/dashboard")}
-                className="text-sm font-medium transition-colors hover:opacity-70"
-                style={{ color: "#5C4A3D" }}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setLocation("/next-moves")}
-                className="text-sm font-medium transition-colors hover:opacity-70"
-                style={{ color: "#5C4A3D" }}
-              >
-                Next Moves
-              </button>
-              <button
-                onClick={() => setLocation("/faq")}
-                className="text-sm font-medium transition-colors hover:opacity-70"
-                style={{ color: "#5C4A3D" }}
-              >
-                FAQ
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => {
-                  setLocation("/");
-                  setTimeout(() => {
-                    document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
-                  }, 100);
-                }}
-                className="text-sm font-medium transition-colors hover:opacity-70"
-                style={{ color: "#5C4A3D" }}
-              >
-                How it works
-              </button>
-              <button
-                onClick={() => setLocation("/faq")}
-                className="text-sm font-medium transition-colors hover:opacity-70"
-                style={{ color: "#5C4A3D" }}
-              >
-                FAQ
-              </button>
-            </>
-          )}
-        </nav>
-
+      {/* Center nav links */}
+      <nav
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 32,
+        }}
+        className="hidden md:flex"
+      >
         {user ? (
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setDropdownOpen(s => !s)}
-              className="flex items-center gap-2.5 rounded-full px-3 py-1.5 transition-all hover:opacity-80"
-              style={{ backgroundColor: "rgba(196,98,45,0.08)" }}
-            >
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center font-semibold text-xs"
-                style={{ backgroundColor: "rgba(196,98,45,0.2)", color: "#C4622D" }}
-              >
-                {initial}
-              </div>
-              <span className="hidden sm:block text-sm font-medium" style={{ color: "#2C1810" }}>
-                {firstName ?? "Account"}
-              </span>
-            </button>
-            {dropdownOpen && (
-              <div
-                className="absolute right-0 top-11 w-48 rounded-xl shadow-xl z-50 py-2 overflow-hidden"
-                style={{ backgroundColor: "#FFFDF8", border: "1px solid rgba(44,24,16,0.1)" }}
-              >
+          <>
+            {(["Dashboard", "Next Moves", "FAQ"] as const).map((label) => {
+              const href = label === "Dashboard" ? "/dashboard" : label === "Next Moves" ? "/next-moves" : "/faq";
+              return (
                 <button
-                  onClick={() => { setLocation("/profile"); setDropdownOpen(false); }}
-                  className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-amber-50/30"
-                  style={{ color: "#2C1810" }}
+                  key={label}
+                  onClick={() => setLocation(href)}
+                  style={{ fontSize: 15, color: "#1C1812", background: "none", border: "none", cursor: "pointer", padding: 0, transition: "color 150ms" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "rgba(28,24,18,0.5)")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "#1C1812")}
                 >
-                  Profile
+                  {label}
                 </button>
-                <button
-                  onClick={() => { setLocation("/profile?tab=settings"); setDropdownOpen(false); }}
-                  className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-amber-50/30"
-                  style={{ color: "#2C1810" }}
-                >
-                  Settings
-                </button>
-                <div style={{ borderTop: "1px solid rgba(44,24,16,0.08)", margin: "4px 0" }} />
-                <button
-                  onClick={async () => {
-                    await signOut();
-                    setLocation("/");
-                    setDropdownOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-amber-50/30"
-                  style={{ color: "#C4622D" }}
-                >
-                  Sign out
-                </button>
-              </div>
-            )}
-          </div>
+              );
+            })}
+          </>
         ) : (
+          <>
+            <button
+              onClick={() => { setLocation("/"); setTimeout(() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" }), 100); }}
+              style={{ fontSize: 15, color: linkColor, background: "none", border: "none", cursor: "pointer", padding: 0, transition: "color 150ms" }}
+              onMouseEnter={e => (e.currentTarget.style.color = linkHoverColor)}
+              onMouseLeave={e => (e.currentTarget.style.color = linkColor)}
+            >
+              How it works
+            </button>
+            <button
+              onClick={() => setLocation("/faq")}
+              style={{ fontSize: 15, color: linkColor, background: "none", border: "none", cursor: "pointer", padding: 0, transition: "color 150ms" }}
+              onMouseEnter={e => (e.currentTarget.style.color = linkHoverColor)}
+              onMouseLeave={e => (e.currentTarget.style.color = linkColor)}
+            >
+              FAQ
+            </button>
+          </>
+        )}
+      </nav>
+
+      {/* Right: profile or sign-up button */}
+      {user ? (
+        <div style={{ position: "relative" }} ref={dropdownRef}>
+          <button
+            onClick={() => setDropdownOpen(s => !s)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              borderRadius: 9999,
+              padding: "6px 12px",
+              backgroundColor: "rgba(196,98,45,0.08)",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                backgroundColor: "rgba(196,98,45,0.2)",
+                color: "#C4622D",
+                fontWeight: 600,
+                fontSize: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {initial}
+            </div>
+            <span className="hidden sm:block" style={{ fontSize: 14, fontWeight: 500, color: "#2C1810" }}>
+              {firstName ?? "Account"}
+            </span>
+          </button>
+          {dropdownOpen && (
+            <div
+              style={{
+                position: "absolute",
+                right: 0,
+                top: 44,
+                width: 192,
+                borderRadius: 12,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+                zIndex: 50,
+                paddingTop: 8,
+                paddingBottom: 8,
+                overflow: "hidden",
+                backgroundColor: "#FFFDF8",
+                border: "1px solid rgba(44,24,16,0.10)",
+              }}
+            >
+              {[
+                { label: "Profile",  href: "/profile" },
+                { label: "Settings", href: "/profile?tab=settings" },
+              ].map(({ label, href }) => (
+                <button
+                  key={label}
+                  onClick={() => { setLocation(href); setDropdownOpen(false); }}
+                  style={{ width: "100%", textAlign: "left", padding: "10px 16px", fontSize: 14, color: "#2C1810", background: "none", border: "none", cursor: "pointer" }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(247,240,224,0.5)")}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                >
+                  {label}
+                </button>
+              ))}
+              <div style={{ borderTop: "1px solid rgba(44,24,16,0.08)", margin: "4px 0" }} />
+              <button
+                onClick={async () => { await signOut(); setLocation("/"); setDropdownOpen(false); }}
+                style={{ width: "100%", textAlign: "left", padding: "10px 16px", fontSize: 14, color: "#C4622D", background: "none", border: "none", cursor: "pointer" }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(247,240,224,0.5)")}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+              >
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
           <button
             onClick={() => setLocation("/sign-up")}
-            className="px-5 py-2 rounded-full font-semibold text-sm transition-all hover:scale-105 shadow-sm"
-            style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
+            className="hidden md:block"
+            style={{
+              fontSize: 12,
+              padding: "7px 18px",
+              borderRadius: 9999,
+              fontWeight: 600,
+              backgroundColor: "#C4622D",
+              color: "#F7F0E0",
+              border: "none",
+              cursor: "pointer",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+              transition: "transform 150ms",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.04)")}
+            onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
           >
             Sign up / Log in
           </button>
-        )}
-
-        {/* Mobile menu (minimal) */}
-        <div className="md:hidden flex items-center gap-3">
-          {!user && (
-            <button
-              onClick={() => setLocation("/sign-up")}
-              className="px-4 py-1.5 rounded-full font-semibold text-xs"
-              style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
-            >
-              Start
-            </button>
-          )}
-        </div>
-      </div>
+          <button
+            onClick={() => setLocation("/sign-up")}
+            className="md:hidden"
+            style={{
+              fontSize: 12,
+              padding: "6px 14px",
+              borderRadius: 9999,
+              fontWeight: 600,
+              backgroundColor: "#C4622D",
+              color: "#F7F0E0",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Start
+          </button>
+        </>
+      )}
     </header>
   );
 }

@@ -102,6 +102,12 @@
   }
 }
 
+/* Auth form focus state — teal ring */
+.auth-input:focus {
+  border-color: #2A6B63 !important;
+  box-shadow: 0 0 0 3px rgba(42, 107, 99, 0.12) !important;
+}
+
 @layer utilities {
   .glass-panel {
     @apply bg-card/80 backdrop-blur-md border border-foreground/8;

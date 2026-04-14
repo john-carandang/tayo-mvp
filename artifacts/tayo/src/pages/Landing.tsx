@@ -256,61 +256,8 @@ export default function Landing() {
           style={{ objectFit: "cover", objectPosition: "center 35%" }}
         />
 
-        {/* ── NAVBAR: transparent, white text, serif logo ── */}
-        <nav className="relative z-30 w-full px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={() => setLocation("/")}
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 20,
-              fontWeight: 600,
-              color: "#F7F0E0",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-            }}
-          >
-            Tayo
-          </button>
-          <div className="hidden md:flex items-center gap-8">
-            <button
-              onClick={() => { setLocation("/"); setTimeout(() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" }), 100); }}
-              style={{ fontSize: 15, color: "#F7F0E0", background: "none", border: "none", cursor: "pointer", padding: 0, transition: "color 150ms" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "rgba(247,240,224,0.7)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "#F7F0E0")}
-            >
-              How it works
-            </button>
-            <button
-              onClick={() => setLocation("/faq")}
-              style={{ fontSize: 15, color: "#F7F0E0", background: "none", border: "none", cursor: "pointer", padding: 0, transition: "color 150ms" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "rgba(247,240,224,0.7)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "#F7F0E0")}
-            >
-              FAQ
-            </button>
-          </div>
-          <button
-            onClick={() => setLocation("/sign-up")}
-            style={{
-              fontSize: 12,
-              padding: "7px 18px",
-              borderRadius: 9999,
-              fontWeight: 600,
-              backgroundColor: "#C4622D",
-              color: "#F7F0E0",
-              border: "none",
-              cursor: "pointer",
-              transition: "transform 150ms",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.22)",
-            }}
-            onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.04)")}
-            onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
-          >
-            Sign up / Log in
-          </button>
-        </nav>
+        {/* ── NAVBAR: shared component, transparent over hero ── */}
+        <Navbar variant="transparent" />
 
         {/* ── HERO TEXT: plain white with text-shadow ── */}
         <div

@@ -1,0 +1,61 @@
+Context: The Tayo sign-up / log-in page currently shows a plain centered form. The landing page navbar ("Tayo", "How it works", "FAQ") has also diverged in font, sizing, and color from the auth page. We are redesigning the auth page to a BetterUp-style split layout and ensuring both pages share a consistent navbar.
+Task: Two things in one pass: (1) redesign the auth page to a 50/50 split layout with the living room photo on the right, and (2) extract the navbar into a shared component so the landing page and auth page are pixel-identical in their top navigation. Apply Tayo's Amber & Teal color system throughout.
+
+Part 1 — Auth page redesign
+Apply to both sign-up and log-in views. If they share a component, update once. If separate, update both.
+Layout:
+
+Full viewport height (min-height: 100vh), no scroll if form fits
+display: grid; grid-template-columns: 1fr 1fr
+Mobile (< 768px): single column, right photo panel hidden, form full-width
+
+Left panel — form:
+
+Background: #F7F0E0
+display: flex; flex-direction: column; justify-content: center; align-items: center
+Inner form container: max-width: 400px; width: 100%; padding: 48px 32px
+Logo: "Tayo", serif font, font-size: 24px, color: #C4622D, centered, margin-bottom: 32px
+Page title ("Welcome to Tayo" / "Log in to Tayo"): serif, font-size: 28px, color: #1C1812, font-weight: 500, centered, margin-bottom: 8px
+Subtitle: serif, font-size: 15px, color: #7a5c44, centered, margin-bottom: 32px
+"Continue with Google" button (if present): border: 1px solid rgba(60,40,20,0.2), border-radius: 8px, background: #fff, color: #1C1812, font-size: 15px, padding: 10px, full width, margin-bottom: 20px. Divider below: "or" in font-size: 13px, color: #8a7060, centered
+Form fields (First name, Last name, Email, Password):
+
+Label: sans-serif, font-size: 13px, color: #5a4a3f, font-weight: 500, margin-bottom: 4px
+Input: border: 1px solid rgba(60,40,20,0.2), border-radius: 8px, padding: 10px 14px, font-size: 15px, background: #fff, color: #1C1812, full width
+Focus state: border-color: #2A6B63, outline: none, box-shadow: 0 0 0 3px rgba(42,107,99,0.12)
+First name + Last name: display: grid; grid-template-columns: 1fr 1fr; gap: 12px
+Password field: show/hide toggle (eye icon), never plaintext by default
+
+
+Primary CTA ("Create account" / "Continue"): background: #C4622D, color: #F7F0E0, border: none, border-radius: 8px, padding: 12px, font-size: 16px, font-weight: 500, full width, margin-top: 20px, hover background: #a8522a
+Footer link ("Already have an account? Sign in" / "Don't have an account? Sign up"): font-size: 14px, color: #7a5c44, centered, margin-top: 16px. Link portion: color: #2A6B63, font-weight: 500
+Privacy / help links (if present): font-size: 12px, color: #8a7060, centered, margin-top: 24px
+No card border or box shadow on the form — it sits directly on the parchment panel
+
+Right panel — photo:
+
+Background image: Living_Room.jpg from public/assets/ — confirm exact filename and path before referencing
+background-size: cover, background-position: center, height: 100%, min-height: 100vh
+No overlay, no filter, no darkening — fully vibrant
+position: sticky; top: 0 so it holds while form scrolls on short viewports
+
+
+Part 2 — Shared navbar component
+
+Create (or confirm the existence of) a shared Navbar component at components/Navbar.tsx
+The auth page navbar is the source of truth — extract its exact values for: logo text, font family, font size, font weight, color; nav link font, size, color, hover color, gap; button background, text color, font size, border radius, padding; overall height, padding, flex alignment
+Both the landing page and auth page must import and render this same Navbar component — do not duplicate styles across files
+On the landing page, the navbar renders transparent over the hero image — pass a prop (e.g. variant="transparent") that removes the background while keeping all font and color values identical
+On the auth page, the navbar renders with background: #F7F0E0 (matching the left panel) or as a standalone top bar above the split layout — match whatever the current auth page navbar treatment is
+"Tayo", "How it works", "FAQ" must be consistently positioned (logo left, links center, button right) on both pages
+
+
+Security & Privacy:
+
+All form inputs must use correct autocomplete attributes: autocomplete="given-name", autocomplete="family-name", autocomplete="email", autocomplete="new-password" / autocomplete="current-password"
+Never log email or password values to the console
+Form submission must route through existing Supabase auth handlers — do not create new auth logic
+Sanitize all inputs before passing to Supabase
+
+UI/UX: A user moving from the landing page to the auth page should feel no visual break — same navbar, same warm palette, same typography. The living room photo on the right panel reinforces the "this is your space" feeling as the user prepares to enter the product. Keep the auth page still and calm — no animations.
+Verification: After completing, take screenshots of both pages and confirm: (1) auth page shows 50/50 split with form left and living room photo right, full-bleed, no overlay; (2) "Tayo" logo in burnt orange serif, primary button burnt orange, focus states teal; (3) password field has show/hide toggle; (4) landing page and auth page navbars are pixel-identical in font, size, color, and positioning — both render from the same shared component; (5) landing page navbar remains transparent over the hero; (6) mobile collapses to single column with photo hidden; (7) no new auth logic introduced — all submissions route through existing Supabase handlers; (8) no other page sections were changed.
