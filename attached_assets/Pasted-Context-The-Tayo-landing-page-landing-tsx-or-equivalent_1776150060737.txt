@@ -1,0 +1,58 @@
+Context: The Tayo landing page (landing.tsx or equivalent) currently has three equal-weight testimonial cards, a centered text-only problem/solution block, and three equal "How it works" cards. We are replacing all four sections with a redesigned layout. A visual wireframe has been provided as a reference image — implement to match it as closely as possible.
+Task: Replace the testimonials, problem, solution, and "How it works" sections in the landing page with the redesigned layouts below. Do not change the hero section, navbar, FAQ, or footer.
+Requirements:
+Section 1 — Testimonials
+
+Three-column layout: narrow side card (left) | featured center card (wide) | narrow side card (right)
+Center card: white background, border: 0.5px solid rgba(196,98,45,0.25), border-radius: 12px, padding: 32px. Large decorative quote mark (font-size: 48px, color: #C4622D, opacity: 0.3) positioned top-left inside card. Quote text in serif font, 17px, color: #3D2B1F. Attribution in burnt orange (#C4622D), 12px, font-weight 500
+Side cards: background: rgba(245,240,232,0.7), border: 0.5px solid rgba(60,40,20,0.15), border-radius: 12px, padding: 20px. Italic 13px quote text, same burnt orange attribution
+Navigation: left arrow button | three dot indicators | right arrow button — all centered below the grid
+Testimonial toggle must be fully functional: clicking arrows or dots fades out current quotes (opacity 0, translateY 4px, 200ms) and fades in the next set. Each of the three states rotates all three quotes simultaneously (center + both sides update together). Arrow buttons: border: 0.5px solid rgba(60,40,20,0.2), circular, 28px, hover state changes border and text to #C4622D
+Active dot: background: #C4622D. Inactive: background: rgba(196,98,45,0.25)
+Three testimonial datasets to cycle through (Ian W. / Andy L. / Nestor F. as center in each rotation)
+
+Section 2 — Problem
+
+Two-column grid, gap: 64px, padding: 64px 48px, background: #EDE8DE
+Left column: eyebrow label ("The problem") in burnt orange uppercase 10px; large serif headline (~36px): "More tools, more advice, more overwhelm." — the word "overwhelm." in color: #C4622D
+Right column: three paragraphs of body copy (14px, line-height: 1.8, color: #5a4a3f):
+
+P1: "Millennials and Gen Z crave holistic well-being and self-actualization more than any generation before them — across career, relationships, health, finances, and beyond."
+P2: "But the explosion of wellness apps, social media advice, self-help content, and coaching frameworks hasn't made things clearer. It's made them louder. People are pulled in more directions than ever, reacting to the noisiest voices rather than their own."
+P3 (slightly bolder, color: #3D2B1F): "Access without clarity isn't freedom — it's overwhelm. What's missing is a way to actually cut through."
+
+
+No images in this section
+
+Section 3 — Solution
+
+Full-width dark section: background: #2A1A0E, padding: 64px 48px
+Content centered, max-width: 680px, margin: 0 auto, text-align: center
+Eyebrow: "The solution" — uppercase 11px, color: #D4A847, letter-spacing 0.12em
+Headline (serif, 30px, color: #F5F0E8): "A coaching companion that learns who you are — and helps you grow from there."
+Two body paragraphs, 14px, color: rgba(245,240,232,0.65)
+Three pillar cards below (display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px):
+
+Card style: background: rgba(245,240,232,0.06), border: 0.5px solid rgba(245,240,232,0.12), border-radius: 10px, padding: 22px 18px, text-align: left
+Each card has: icon container (36x36px, background: rgba(196,98,45,0.2), border-radius: 8px) + title (13px, 500 weight, color: #F5F0E8) + description (12px, color: rgba(245,240,232,0.5))
+Card 1 — icon: line chart SVG (rising polyline with endpoint dot) in #D4A847 | title: "Learns across sessions" | desc: "Builds a living portrait of who you are over time — not a one-off snapshot"
+Card 2 — icon: clock/watch face SVG (circle + hour and minute hands + center dot) in #D4A847 | title: "Whole-person view" | desc: "Mental, physical, relational, financial, identity — all connected in one place"
+Card 3 — icon: three nodes connected by dashed lines (triangle network) in #D4A847 | title: "Culturally grounded" | desc: "Surfaces resources and context relevant to your lived experience"
+
+
+
+Section 4 — How it works
+
+Two-column grid: 1fr left | 2fr right, gap: 64px, padding: 64px 48px, background: #F5F0E8
+Left: eyebrow label + serif headline (~32px): "From open conversation to clear direction." — "clear direction." in color: #C4622D
+Right: vertical connected step list — three steps separated by border-bottom: 0.5px solid rgba(60,40,20,0.1), last step no border
+Each step: flex row with number circle + content. Number circle: 36px, border-radius: 50%, background: #2A1A0E, white text 13px. A vertical connector line (width: 1px, background: rgba(60,40,20,0.15)) runs from below the circle to the top of the next step — omit on the last step
+Step titles: 15px, weight 500, color: #2A1A0E. Step descriptions: 13px, line-height: 1.7, color: #7a5c44
+Step 1: "Voice intake — your story, in your words" / "A 25–30 minute guided voice conversation that maps your life, values, and what matters most to you. No forms. No prompts. Just an open conversation."
+Step 2: "Your dashboard — a portrait of you" / "See your Journey to Date, a five-dimension whole-person view, and your Strategic Plan — all built entirely from your own words and patterns."
+Step 3: "Next moves — between sessions" / "Your Next Moves page holds your commitments, curated resources, and a countdown to your next session — so growth compounds rather than resets."
+No tags or badges on steps
+
+Security & Privacy: No user data involved in this change. No external API calls. All content is static copy.
+UI/UX: Match the attached wireframe as closely as possible. Warm cream background (#F5F0E8) for testimonials and how-it-works sections. Slightly darker cream (#EDE8DE) for problem section. Dark warm brown (#2A1A0E) for solution section. All section transitions should feel intentional — no jarring color shifts. Preserve all existing page sections outside these four.
+Verification: After completing, take a screenshot confirming: (1) testimonial arrows and dots are functional and all three toggle states work, (2) problem section has two columns with no images, (3) solution section is dark with three icon cards, (4) how-it-works shows a numbered connected list with no tags, (5) no other sections were modified.
