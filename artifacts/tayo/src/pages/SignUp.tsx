@@ -74,8 +74,7 @@ export default function SignUp() {
             onClick={() => setLocation("/")}
             style={{
               display: "block",
-              width: "100%",
-              textAlign: "center",
+              textAlign: "left",
               fontFamily: "var(--font-display)",
               fontSize: 24,
               fontWeight: 600,
@@ -189,7 +188,7 @@ export default function SignUp() {
                       required
                       maxLength={100}
                       autoComplete="given-name"
-                      placeholder="Alex"
+                      placeholder="Cesar"
                       className="auth-input"
                       style={{ width: "100%", padding: "10px 14px", borderRadius: 8, fontSize: 15, backgroundColor: "#fff", border: "1px solid rgba(60,40,20,0.2)", color: "#1C1812", outline: "none", boxSizing: "border-box" }}
                     />
@@ -204,7 +203,7 @@ export default function SignUp() {
                       onChange={e => setLastName(e.target.value)}
                       maxLength={100}
                       autoComplete="family-name"
-                      placeholder="Kim"
+                      placeholder="Pascual"
                       className="auth-input"
                       style={{ width: "100%", padding: "10px 14px", borderRadius: 8, fontSize: 15, backgroundColor: "#fff", border: "1px solid rgba(60,40,20,0.2)", color: "#1C1812", outline: "none", boxSizing: "border-box" }}
                     />
