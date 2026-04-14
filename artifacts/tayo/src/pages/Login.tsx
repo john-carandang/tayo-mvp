@@ -48,7 +48,35 @@ export default function Login() {
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: "100vh" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: "100vh", position: "relative" }}>
+
+      {/* ── PAGE-LEVEL LOGO BAR — transparent, above both panels ── */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          padding: "16px 28px",
+          zIndex: 10,
+        }}
+      >
+        <button
+          onClick={() => setLocation("/")}
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 20,
+            fontWeight: 500,
+            color: "#C4622D",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          Tayo
+        </button>
+      </div>
 
       {/* ── LEFT PANEL — form ────────────────────────────────────────────── */}
       <div
@@ -58,32 +86,11 @@ export default function Login() {
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          padding: "48px 24px",
+          padding: "80px 24px 48px",
         }}
         className="col-span-2 md:col-span-1"
       >
         <div style={{ width: "100%", maxWidth: 400, padding: "0 32px" }}>
-
-          {/* Logo */}
-          <button
-            onClick={() => setLocation("/")}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "center",
-              fontFamily: "var(--font-display)",
-              fontSize: 24,
-              fontWeight: 600,
-              color: "#C4622D",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-              marginBottom: 32,
-            }}
-          >
-            Tayo
-          </button>
 
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 500, color: "#1C1812", textAlign: "center", marginBottom: 8 }}>
             Log in to Tayo
