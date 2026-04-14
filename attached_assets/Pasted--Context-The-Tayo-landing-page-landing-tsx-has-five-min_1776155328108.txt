@@ -1,0 +1,28 @@
+**Context:** The Tayo landing page (`landing.tsx`) has five minor copy edits and one testimonial sequence fix. No layout, style, or component changes.
+
+**Task:** Apply the following six targeted changes exactly as written. Do not paraphrase, reword, or change anything outside the specific strings listed below.
+
+**Change 1 — Hero subheading copy:**
+- Find: `"and what truly matters most."`
+- Replace with: `"and what matters most."`
+
+**Change 2 — Testimonial rotation order:**
+- The three testimonial states must cycle in this fixed sequence: Ian W. → Nestor F. → Andy L. → Ian W. (repeating)
+- Update the `testimonials` array order in the carousel logic so index 0 = Ian W. as center, index 1 = Nestor F. as center, index 2 = Andy L. as center
+- Forward arrow and dot navigation must follow this order exactly — no jumping or randomizing
+
+**Change 3 — Solution pillar copy:**
+- Find: `"Mental, physical, relational, financial, identity — all connected in one place"`
+- Replace with: `"Mental, physical, relational, financial, and beyond — all connected in one place"`
+
+**Change 4 — How it works step 1 copy:**
+- Find: `"A 25–30 minute guided voice conversation that maps your life, values, and what matters most to you. No forms. No prompts. Just an open conversation."`
+- Replace with: `"A 25–30 minute guided voice conversation that begins to map your life, values, and what matters most to you. No long forms. No prompts. Just an open conversation."`
+
+**Change 5 — How it works step 2 copy:**
+- Find: `"See your Journey to Date, a five-dimension whole-person view, and your Strategic Plan — all built entirely from your own words and patterns."`
+- Replace with: `"See your Journey to Date, your holistic, whole-person view, and your Strategic Plan — all built entirely from your own words and lived experiences."`
+
+**Security & Privacy:** Copy changes only. No logic, style, or data handling changes.
+
+**Verification:** After completing, confirm each of the five strings above has been updated exactly as specified, and that the testimonial carousel cycles Ian → Nestor → Andy in order with no skipping.

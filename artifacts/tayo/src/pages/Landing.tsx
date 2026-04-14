@@ -37,9 +37,9 @@ const T_NESTOR = {
 };
 
 const TESTIMONIAL_SETS = [
-  { left: T_ANDY,   center: T_IAN,   right: T_NESTOR },
-  { left: T_NESTOR, center: T_ANDY,  right: T_IAN    },
+  { left: T_ANDY,   center: T_IAN,    right: T_NESTOR },
   { left: T_IAN,    center: T_NESTOR, right: T_ANDY   },
+  { left: T_NESTOR, center: T_ANDY,   right: T_IAN    },
 ];
 
 // ── Framer-motion variants for directional slide ─────────────────────────────
@@ -80,11 +80,11 @@ const IconNetwork = () => (
 const HOW_STEPS = [
   {
     title: "Voice intake — your story, in your words",
-    desc: "A 25–30 minute guided voice conversation that maps your life, values, and what matters most to you. No forms. No prompts. Just an open conversation.",
+    desc: "A 25–30 minute guided voice conversation that begins to map your life, values, and what matters most to you. No long forms. No prompts. Just an open conversation.",
   },
   {
     title: "Your dashboard — a portrait of you",
-    desc: "See your Journey to Date, a five-dimension whole-person view, and your Strategic Plan — all built entirely from your own words and patterns.",
+    desc: "See your Journey to Date, your holistic, whole-person view, and your Strategic Plan — all built entirely from your own words and lived experiences.",
   },
   {
     title: "Next moves — between sessions",
@@ -292,7 +292,7 @@ export default function Landing() {
                   maxWidth: 460,
                 }}
               >
-                Tayo is an AI coaching platform that helps you cut through the noise of modern life and tune into who you truly are and what truly matters most.
+                Tayo is an AI coaching platform that helps you cut through the noise of modern life and tune into who you truly are and what matters most.
               </p>
             </div>
             <button
@@ -449,7 +449,7 @@ export default function Landing() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
             {[
               { Icon: IconLineChart, title: "Learns across sessions",  desc: "Builds a living portrait of who you are over time — not a one-off snapshot" },
-              { Icon: IconClock,     title: "Whole-person view",        desc: "Mental, physical, relational, financial, identity — all connected in one place" },
+              { Icon: IconClock,     title: "Whole-person view",        desc: "Mental, physical, relational, financial, and beyond — all connected in one place" },
               { Icon: IconNetwork,   title: "Culturally grounded",       desc: "Surfaces resources and context relevant to your lived experience" },
             ].map(({ Icon, title, desc }) => (
               <div key={title} style={{ backgroundColor: "rgba(247,240,224,0.05)", border: "0.5px solid rgba(42,107,99,0.30)", borderRadius: 10, padding: "22px 18px", textAlign: "left" }}>
