@@ -234,57 +234,120 @@ export default function Landing() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F5F0E8" }}>
 
-      {/* ── 1. HERO — full-width background image ───────────────────────── */}
+      {/* ── 1. HERO — lifestyle photo as <img>, transparent nav overlaid ─ */}
+      <section className="relative overflow-hidden" style={{ minHeight: "100vh" }}>
 
-      {/* Navbar sits above the hero image */}
-      <Navbar />
+        {/* Lifestyle photo — img tag (not CSS background-image).
+            Primary: Unsplash clean lifestyle photo (no baked-in UI text).
+            Fallback: our local hero-bg.jpg */}
+        <img
+          src="https://images.unsplash.com/photo-1543269865-cbf427effbad?w=1600&auto=format&fit=crop&q=80"
+          onError={(e) => { (e.target as HTMLImageElement).src = `${BASE_URL}/hero-bg.jpg`; }}
+          alt="Diverse friends relaxing in a warm cozy living room"
+          className="absolute inset-0 w-full h-full"
+          style={{
+            objectFit: "cover",
+            objectPosition: "center 40%",
+            filter: "sepia(0.22) brightness(0.88) saturate(1.25) contrast(1.04)",
+          }}
+        />
 
-      <section className="relative overflow-hidden" style={{ minHeight: "82vh" }}>
-        {/* Background image */}
+        {/* Gradient overlay — stronger at top and bottom, lighter in mid where people are */}
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url(${BASE_URL}/hero-bg.jpg)`,
-            backgroundSize: "cover",
-            backgroundPosition: "center top",
+            background:
+              "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.28) 22%, rgba(0,0,0,0.32) 55%, rgba(0,0,0,0.68) 80%, rgba(0,0,0,0.88) 100%)",
           }}
         />
-        {/* Dark overlay for readability */}
-        <div className="absolute inset-0" style={{ backgroundColor: "rgba(0,0,0,0.38)" }} />
 
-        {/* Hero text + CTA */}
-        <div className="relative z-10 flex flex-col items-center justify-center text-center px-6"
-          style={{ minHeight: "82vh", paddingBottom: "5rem" }}
+        {/* ── Transparent nav ─────────────────────────────────────────── */}
+        <nav
+          className="relative z-30 w-full px-6 py-4 flex items-center justify-between"
+          style={{ maxWidth: "100%" }}
         >
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+          <button
+            onClick={() => setLocation("/")}
+            className="font-display text-2xl font-semibold"
+            style={{ color: "#FFFDF8" }}
+          >
+            Tayo
+          </button>
+
+          <div className="hidden md:flex items-center gap-8">
+            <button
+              onClick={() => {
+                setLocation("/");
+                setTimeout(() => {
+                  document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+                }, 100);
+              }}
+              className="text-sm font-medium transition-opacity hover:opacity-70"
+              style={{ color: "rgba(255,253,248,0.88)" }}
+            >
+              How it works
+            </button>
+            <button
+              onClick={() => setLocation("/faq")}
+              className="text-sm font-medium transition-opacity hover:opacity-70"
+              style={{ color: "rgba(255,253,248,0.88)" }}
+            >
+              FAQ
+            </button>
+          </div>
+
+          <button
+            onClick={() => setLocation("/sign-up")}
+            className="px-5 py-2 rounded-full font-semibold text-sm transition-all hover:scale-105 shadow-md"
+            style={{ backgroundColor: "#C4622D", color: "#F5F0E8" }}
+          >
+            Sign up / Log in
+          </button>
+        </nav>
+
+        {/* ── Hero text + CTA ─────────────────────────────────────────── */}
+        <div
+          className="relative z-20 flex flex-col items-center justify-center text-center px-6"
+          style={{ minHeight: "calc(100vh - 72px)", paddingBottom: "7rem" }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.75, ease: "easeOut" }}
+          >
             <h1
               className="font-display mb-6"
               style={{
-                fontSize: "clamp(3rem, 8vw, 5.5rem)",
-                lineHeight: 1.08,
+                fontSize: "clamp(3.2rem, 9vw, 6rem)",
+                lineHeight: 1.04,
+                fontWeight: 800,
                 color: "#FFFFFF",
-                textShadow: "0 2px 24px rgba(0,0,0,0.3)",
+                textShadow: "0 2px 32px rgba(0,0,0,0.22), 0 1px 4px rgba(0,0,0,0.18)",
+                letterSpacing: "-0.01em",
               }}
             >
               Drown out the noise.<br />Find your signal.
             </h1>
+
             <p
-              className="mb-10 max-w-2xl mx-auto leading-relaxed"
+              className="mb-10 mx-auto leading-relaxed"
               style={{
-                fontSize: "clamp(1rem, 2vw, 1.2rem)",
-                color: "rgba(255,255,255,0.88)",
-                textShadow: "0 1px 8px rgba(0,0,0,0.25)",
+                maxWidth: 480,
+                fontSize: "clamp(0.95rem, 1.8vw, 1.1rem)",
+                color: "rgba(255,253,248,0.9)",
+                textShadow: "0 1px 10px rgba(0,0,0,0.28)",
               }}
             >
               Tayo is an AI coaching platform that helps you cut through the noise of modern life and tune into who you truly are and what truly matters most.
             </p>
+
             <button
               onClick={() => setLocation("/sign-up")}
               className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-base font-semibold transition-all hover:scale-105"
               style={{
                 backgroundColor: "#C4622D",
                 color: "#F5F0E8",
-                boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+                boxShadow: "0 6px 28px rgba(0,0,0,0.28)",
               }}
             >
               Begin your journey <ChevronRight className="w-5 h-5" />

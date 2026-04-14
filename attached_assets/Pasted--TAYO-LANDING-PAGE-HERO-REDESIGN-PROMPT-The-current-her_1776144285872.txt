@@ -1,0 +1,82 @@
+**TAYO — LANDING PAGE HERO REDESIGN PROMPT**
+
+The current hero uses the reference image as a background photo with text overlaid on top. This is incorrect. The goal is to **recreate the design itself in code** — replicating the layout, styling, color palette, typography, and spatial composition of the reference image as closely as possible, with the new text content embedded into it.
+
+Do not use the reference image as a background. Build the design.
+
+---
+
+**REFERENCE IMAGE DESCRIPTION — replicate precisely:**
+
+The hero section is a full-width, full-height warm editorial layout with the following characteristics:
+
+**Background and atmosphere:**
+- Warm cream/off-white background (`#F5F0E8` or closest match)
+- The scene depicts a cozy retro living room — warm amber and orange lighting, bookshelves, plants, vintage posters, a large floor lamp with a warm globe shade, green velvet curved sofa, and wooden elements
+- Three BIPOC Millennials are seated and relaxed in the foreground — natural, candid, not posed
+- The overall color temperature is warm: amber, burnt orange, sage green, cream — no cold tones
+
+**Typography and layout:**
+- The headline is very large, bold, serif font — dominant on the page
+- Two lines, left-aligned or center-aligned depending on the reference
+- Line 1: "Drown out the noise."
+- Line 2: "Find your signal."
+- Font weight is heavy (700–800), color is near-black warm brown (`#1C1008` or similar)
+- The headline sits in the upper-center portion of the hero, overlapping slightly with the scene
+
+**Subheading:**
+- Smaller body text below the headline, same warm brown color, lighter weight
+- Text: "Tayo is an AI coaching platform that helps you cut through the noise of modern life and tune into who you truly are and what truly matters most."
+- Max width ~480px, centered
+
+**CTA button:**
+- Burnt orange pill-shaped button (`#C4622D`)
+- Label: "Begin your journey →"
+- Centered below subheading
+
+**Disclaimer (removed):**
+- Do not include the "Tayo is an AI coaching tool..." callout box anywhere in the hero
+
+**Overall composition:**
+- The lifestyle photography and the typographic headline coexist in the same visual space — the text feels like it belongs inside the scene, not pasted over it
+- Use a CSS illustration or layered div approach with the scene as a decorative background element built from warm color blocks and a high-quality stock photo or illustration — whichever approach most faithfully replicates the warmth and composition of the reference
+- If using a photo, use Unsplash source URL for a diverse group of young adults in a warm interior setting: `https://source.unsplash.com/1600x900/?cozy,friends,interior,warm` — but style it with CSS `filter: sepia(0.2) brightness(0.95)` to match the warm amber tone of the reference
+
+**Nav bar:**
+- Logo "Tayo" left — warm brown, serif or semi-serif
+- "How it works" and "FAQ" center — muted brown
+- "Sign up / Log in" button right — burnt orange pill, white text
+- Nav sits above the hero with no background color (transparent over hero)
+
+---
+
+**TESTIMONIAL CARDS (below hero, unchanged from prior prompt):**
+- 3 cards in a row
+- White background, `border-radius: 12px`, subtle warm border
+- Quote in italic, attribution in small caps
+- Ian W., Andy L., Nestor F. quotes as previously specified
+
+---
+
+**SECTION ORDER (unchanged):**
+1. Nav
+2. Hero (redesigned as above)
+3. Testimonials
+4. The Problem
+5. The Solution
+6. How Tayo works
+7. Closing CTA
+
+---
+
+**DEFINITION OF DONE:**
+1. Hero is built in code — not a photo used as a CSS background-image
+2. Warm cream color palette matches reference: amber, burnt orange, sage, cream, warm brown
+3. Headline "Drown out the noise. Find your signal." renders in large bold serif, dominant on page
+4. Lifestyle imagery of BIPOC Millennials in warm interior setting is present
+5. No AI disclaimer callout box anywhere on the page
+6. No "No credit card required" text
+7. CTA button is burnt orange pill shape
+8. Overall visual warmth and composition matches the reference image as closely as possible
+
+After completing, take a full-page screenshot and confirm what changed.
