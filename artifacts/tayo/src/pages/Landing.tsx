@@ -336,11 +336,11 @@ export default function Landing() {
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 36 }}>
               <p
                 style={{
-                  background: "rgba(247,240,224,0.15)",
+                  background: "rgba(20,12,6,0.45)",
                   borderRadius: 20,
                   padding: "6px 20px",
-                  color: "rgba(247,240,224,0.88)",
-                  fontSize: 15,
+                  color: "rgba(247,240,224,0.96)",
+                  fontSize: 17,
                   lineHeight: 1.6,
                   maxWidth: 460,
                 }}
