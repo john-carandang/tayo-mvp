@@ -35,8 +35,16 @@ const COACHING_RULES = `COACHING BEHAVIOR RULES:
 12. FORMAT: Never use markdown formatting. Plain prose only — no asterisks, hashtags, bullets, or numbered lists.
 13. CLOSING: When wrapping up, ask: "Based on everything we've talked about today, what are 1 or 2 things you feel ready to commit to before we speak again?" Then confirm exactly what they committed to and close warmly.`;
 
+function injectUserName(text: string, name: string): string {
+  if (!name || name === "Friend") return text;
+  return text
+    .replace(/\bthe user\b/gi, name)
+    .replace(/\bthis user\b/gi, name)
+    .replace(/\bour user\b/gi, name);
+}
+
 function buildSession1Prompt(firstName: string, warmupData: Record<string, unknown> | null): string {
-  const name = firstName || "the user";
+  const name = firstName || "Friend";
   const warmupContext = warmupData ? `
 Warm-up context (weave naturally — do not read as a checklist):
 - Music they're into: ${warmupData.music || "not shared"}
@@ -64,7 +72,7 @@ ICF FRAMEWORK: Grounded in ICF Core Competencies (2025). The client is naturally
 }
 
 function buildSession2PlusPrompt(sessionNumber: number, firstName: string, lastProfile: TayoProfile | null): string {
-  const name = firstName || "the user";
+  const name = firstName || "Friend";
   const bridgeContext = lastProfile ? `
 Last session themes to reference (choose ONE as a warm bridge into today):
 - Key values: ${lastProfile.values?.slice(0, 3).join(", ") || "not yet captured"}
@@ -276,6 +284,10 @@ export default function Intake() {
             || ((meta?.full_name as string | undefined)?.split(" ")[0])
             || "";
         }
+        if (!firstName && user?.email) {
+          const localPart = user.email.split("@")[0];
+          firstName = localPart.charAt(0).toUpperCase() + localPart.slice(1).toLowerCase();
+        }
 
         firstNameRef.current = firstName;
         const nextNum = sesCount + 1;
@@ -310,7 +322,7 @@ export default function Intake() {
     const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 0);
     if (sentences.length === 0) { setVoiceState("USER_PROMPT"); return; }
 
-    const audioPromises = sentences.map(s => speakText(s, coachVoiceId).catch(() => null));
+    const audioPromises = sentences.map(s => speakText(injectUserName(s, firstNameRef.current), coachVoiceId).catch(() => null));
 
     for (const promise of audioPromises) {
       if (playbackCancelRef.current) break;

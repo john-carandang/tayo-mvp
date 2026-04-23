@@ -1,0 +1,35 @@
+Quick clarifying thought before writing the prompt: the user's first name already exists in Supabase auth from sign-up — so you don't need to add a new name field to the warm-up page. The real bug is that the name isn't being passed correctly into the voice system prompt, so the AI is falling back to "the user" as a placeholder.
+Adding a name field to warm-up would be redundant and slightly awkward ("wait, I already told you my name when I signed up"). The right fix is a single pipeline patch: pull the name from auth at session start and inject it into the voice system prompt before the first word is spoken.
+Here's the prompt:
+
+Context: The Tayo voice session is referring to the user as "the user" instead of their first name. The user's first name is already available in the Supabase auth profile at user.user_metadata.first_name or derived from user.user_metadata.full_name. In demo mode, the mock user's first name is "Alex". The fix is a pipeline patch — name must be extracted before session start and injected into every layer that generates spoken output.
+Task: Patch the name pipeline across three touch points in one pass. No new UI fields, no schema changes.
+Touch point 1 — Session system prompt:
+
+Before the session voice prompt is constructed, resolve the user's first name using this priority order:
+
+user.user_metadata.first_name if present
+First word of user.user_metadata.full_name split on space if present
+First word of user.email split on @ as a last resort
+In demo mode: hardcode "Alex"
+
+
+Store the resolved name as a const userName variable at the top of the session initialization function
+Replace every instance of "the user", "this user", "our user", or any equivalent placeholder in the voice system prompt with userName
+Example: "You are coaching the user" → "You are coaching ${userName}"
+Example: "Ask the user about their week" → "Ask ${userName} about their week"
+
+Touch point 2 — ElevenLabs / TTS spoken output:
+
+Any string passed to ElevenLabs TTS that contains "the user" or a generic placeholder must be replaced with userName before the API call is made
+Add a sanitization helper function injectUserName(text, name) that runs a global string replace on "the user" → name before any TTS call. Apply this function to every string passed to ElevenLabs throughout the session
+In the opening greeting specifically, confirm it says something like "Hi ${userName}, I'm glad you're here" — not a generic welcome
+
+Touch point 3 — Claude API coaching prompt:
+
+The Claude API system prompt that drives the coaching conversation must include the user's name in the context block passed at session start
+Add this line to the top of the coaching system prompt context: "The user's name is ${userName}. Address them by name naturally throughout the conversation — not in every sentence, but the way a human coach would."
+Confirm no existing instructions in the prompt counteract this (e.g. no instruction to refer to the user in third person)
+
+Security & Privacy: The user's name is already in their auth profile — no new data collection. Do not log the user's name to the console. Do not pass the full name (only first name) to ElevenLabs or Claude.
+Verification: After completing, run a demo session at /demo and confirm: (1) the opening greeting addresses "Alex" by name, (2) at least two mid-session references use "Alex" rather than "the user" or a generic pronoun, (3) the Claude coaching prompt context block contains the name injection line, (4) no instance of the literal string "the user" appears in any TTS output during the session, (5) the fix works for a real signed-up user using their actual first name from auth.

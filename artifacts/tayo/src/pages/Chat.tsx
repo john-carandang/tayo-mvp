@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { StepLayout } from "@/components/layout/StepLayout";
 import { VoiceOrb, type OrbState } from "@/components/ui/VoiceOrb";
 import { useTayoProfile, useChatHistory } from "@/hooks/use-tayo-state";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemo } from "@/contexts/DemoContext";
 import { cn } from "@/lib/utils";
 import { ChevronRight, Clock } from "lucide-react";
 
@@ -49,6 +50,14 @@ function cleanText(text: string): string {
     .replace(/^[-*+]\s+/gm, "")
     .replace(/^\d+\.\s+/gm, "")
     .trim();
+}
+
+function injectUserName(text: string, name: string): string {
+  if (!name || name === "Friend") return text;
+  return text
+    .replace(/\bthe user\b/gi, name)
+    .replace(/\bthis user\b/gi, name)
+    .replace(/\bour user\b/gi, name);
 }
 
 async function speakText(text: string, voiceId?: string): Promise<HTMLAudioElement> {
@@ -96,7 +105,23 @@ export default function Chat() {
   const [, setLocation] = useLocation();
   const { profile, isHydrated } = useTayoProfile();
   const { history, setHistory } = useChatHistory();
-  const { getToken } = useAuth();
+  const { getToken, user } = useAuth();
+  const { isDemoMode } = useDemo();
+
+  const userName = useMemo(() => {
+    if (isDemoMode) return "Alex";
+    if (profile?.firstName) return profile.firstName;
+    const meta = user?.user_metadata as Record<string, unknown> | undefined;
+    const fromMeta =
+      (meta?.first_name as string | undefined) ||
+      ((meta?.full_name as string | undefined)?.split(" ")[0]);
+    if (fromMeta) return fromMeta;
+    if (user?.email) {
+      const localPart = user.email.split("@")[0];
+      return localPart.charAt(0).toUpperCase() + localPart.slice(1).toLowerCase();
+    }
+    return "Friend";
+  }, [isDemoMode, profile, user]);
 
   const [voiceState, setVoiceState] = useState<"IDLE" | "AI_SPEAKING" | "USER_PROMPT" | "USER_RECORDING" | "PROCESSING" | "ERROR" | "CLOSING">("IDLE");
   const [currentAiText, setCurrentAiText] = useState("");
@@ -146,19 +171,18 @@ export default function Chat() {
 
   const buildSystemPrompt = useCallback((isClosing = false) => {
     if (!profile) return "";
-    const topDim = [...profile.dimensions].sort((a, b) => b.importance - a.importance)[0];
 
-    return `You are Tayo, a warm and incisive life coach. The user's name is ${profile.firstName}.
+    return `You are Tayo, a warm and incisive life coach. The user's name is ${userName}. Address them by name naturally throughout the conversation — not in every sentence, but the way a human coach would. Never refer to them as "the user", "this user", or any generic placeholder.
 
-${history.length === 0 ? `Your very first message: Welcome ${profile.firstName} back warmly by name. Tell them this session is for going deeper — making sense of what their journey revealed, exploring what matters most, and preparing for action. Tell them they have about 30 minutes. Then ask: "What's top of mind for you today?"` : ""}
+${history.length === 0 ? `Your very first message: Welcome ${userName} warmly by name — say something like "Hi ${userName}, I'm glad you're here." Tell them this session is for going deeper — making sense of what their journey revealed, exploring what matters most, and preparing for action. Tell them they have about 30 minutes. Then ask: "What's top of mind for you today?"` : ""}
 
 Full life profile (JSON):
 ${JSON.stringify(profile, null, 2).slice(0, 8000)}
 
-${isClosing ? `IMPORTANT: The session is nearing its end. Summarize 2–3 key themes from this conversation in warm, precise language. Then ask: "Before we close — what's one thing you'll do before we talk again?" And then: "How will you know you've followed through?"` : `Your role: Help ${profile.firstName} go deeper — clarify what they want, explore what their dashboard revealed. Reference their actual dimensions, values, life events. Direct and specific.`}
+${isClosing ? `IMPORTANT: The session is nearing its end. Summarize 2–3 key themes from this conversation in warm, precise language. Then ask: "Before we close — what's one thing you'll do before we talk again?" And then: "How will you know you've followed through?"` : `Your role: Help ${userName} go deeper — clarify what they want, explore what their dashboard revealed. Reference their actual dimensions, values, life events. Direct and specific.`}
 
 ${COACHING_RULES}`;
-  }, [profile, history]);
+  }, [profile, history, userName]);
 
   const stopAudio = useCallback(() => {
     playbackCancelRef.current = true;
@@ -174,7 +198,7 @@ ${COACHING_RULES}`;
     const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 0);
     if (sentences.length === 0) { setVoiceState("USER_PROMPT"); return; }
 
-    const audioPromises = sentences.map(s => speakText(s, coachVoiceId).catch(() => null));
+    const audioPromises = sentences.map(s => speakText(injectUserName(s, userName), coachVoiceId).catch(() => null));
 
     for (const promise of audioPromises) {
       if (playbackCancelRef.current) break;
@@ -193,7 +217,7 @@ ${COACHING_RULES}`;
     }
 
     if (!playbackCancelRef.current) setVoiceState("USER_PROMPT");
-  }, [stopAudio, coachVoiceId]);
+  }, [stopAudio, coachVoiceId, userName]);
 
   const handleSessionEnd = useCallback(async () => {
     if (sessionEnded) return;
@@ -203,7 +227,7 @@ ${COACHING_RULES}`;
     const token = getToken();
     if (token && historyRef.current.length > 0) {
       try {
-        const transcript = historyRef.current.map(m => `${m.role === "user" ? profile?.firstName ?? "User" : "Tayo"}: ${m.content}`).join("\n\n");
+        const transcript = historyRef.current.map(m => `${m.role === "user" ? userName : "Tayo"}: ${m.content}`).join("\n\n");
         await fetch(`${BASE_URL}/api/sessions`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -211,7 +235,7 @@ ${COACHING_RULES}`;
         });
       } catch { /* non-fatal */ }
     }
-  }, [sessionEnded, profile, getToken, stopAudio]);
+  }, [sessionEnded, profile, userName, getToken, stopAudio]);
 
   // Auto-greet
   useEffect(() => {
