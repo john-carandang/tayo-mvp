@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { StepLayout } from "@/components/layout/StepLayout";
 import { VoiceOrb, type OrbState } from "@/components/ui/VoiceOrb";
 import { useTayoProfile, type TayoProfile } from "@/hooks/use-tayo-state";
+import { useDemo, DEMO_COACHING_CONTEXT } from "@/contexts/DemoContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { RefreshCw } from "lucide-react";
@@ -193,6 +194,7 @@ export default function Intake() {
   const [, setLocation] = useLocation();
   const { setProfile } = useTayoProfile();
   const { getToken, getTokenAsync } = useAuth();
+  const { isDemoMode } = useDemo();
 
   const [voiceState, setVoiceState] = useState<VoiceState>("LOADING");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -225,6 +227,14 @@ export default function Intake() {
   // Load session number + firstName + build system prompt
   useEffect(() => {
     const initialize = async () => {
+      if (isDemoMode) {
+        systemPromptRef.current = DEMO_COACHING_CONTEXT;
+        firstNameRef.current = "Alex";
+        setSessionNumber(2);
+        setSessionLoaded(true);
+        return;
+      }
+
       try {
         const tok = await getTokenAsync();
         const warmupRaw = localStorage.getItem("tayo_warmup");
@@ -278,7 +288,7 @@ export default function Intake() {
       setSessionLoaded(true);
     };
     initialize();
-  }, [getTokenAsync]);
+  }, [isDemoMode, getTokenAsync]);
 
   const stopAudio = useCallback(() => {
     playbackCancelRef.current = true;
@@ -366,7 +376,7 @@ export default function Intake() {
 
       const firstName = firstNameRef.current;
       const profile = await extractProfile(conversationText, firstName);
-      setProfile(profile);
+      if (!isDemoMode) setProfile(profile);
       setExtractStatus("Building your dashboard…");
 
       const token = await getTokenAsync();

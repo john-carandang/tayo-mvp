@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { VoiceOrb, type OrbState } from "@/components/ui/VoiceOrb";
 import { useTayoProfile, type TayoDimension, type TayoLifeEvent } from "@/hooks/use-tayo-state";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemo, DEMO_SNAPSHOT, DEMO_PROFILE } from "@/contexts/DemoContext";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Circle, Clock, History, Lock, ChevronRight, Headphones } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
@@ -259,6 +260,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { profile, isHydrated } = useTayoProfile();
   const { getToken, getTokenAsync } = useAuth();
+  const { isDemoMode } = useDemo();
 
   const [activeTab, setActiveTab] = useState<Tab>("journey");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -278,6 +280,16 @@ export default function Dashboard() {
   const token = getToken();
 
   useEffect(() => {
+    if (isDemoMode) {
+      setSnapshot(DEMO_SNAPSHOT as unknown as Snapshot);
+      setRemoteFirstName(DEMO_PROFILE.first_name);
+      setCoachName("Maya");
+      setSessionCount(1);
+      setLastSessionEndedAt(DEMO_PROFILE.last_session_ended_at);
+      setSnapshotLoading(false);
+      return;
+    }
+
     const load = async () => {
       setSnapshotLoading(true);
       try {
@@ -305,7 +317,7 @@ export default function Dashboard() {
       setSnapshotLoading(false);
     };
     load();
-  }, [getTokenAsync]);
+  }, [isDemoMode, getTokenAsync]);
 
   const loadHistory = async () => {
     if (!token) return;
@@ -560,7 +572,24 @@ export default function Dashboard() {
           transition={{ delay: 0.3 }}
           className="mt-8 text-center"
         >
-          {sessionLocked ? (
+          {isDemoMode ? (
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl cursor-not-allowed opacity-60"
+                style={{ backgroundColor: "rgba(44,24,16,0.04)", border: "1px solid rgba(44,24,16,0.08)" }}
+              >
+                <CheckCircle2 className="w-4 h-4" style={{ color: "#7A9E87" }} />
+                <p className="text-sm font-semibold" style={{ color: "#746A5A" }}>Intake complete</p>
+              </div>
+              <button
+                onClick={() => setLocation("/warmup")}
+                className="text-xs underline hover:no-underline"
+                style={{ color: "#9B8E84" }}
+              >
+                Start a coaching session →
+              </button>
+            </div>
+          ) : sessionLocked ? (
             <div
               className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl"
               style={{ backgroundColor: "rgba(44,24,16,0.04)", border: "1px solid rgba(44,24,16,0.08)" }}

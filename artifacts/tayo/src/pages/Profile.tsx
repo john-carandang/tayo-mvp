@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemo, DEMO_PROFILE, DEMO_RESOURCES, DEMO_SESSION_SUMMARY, DEMO_SNAPSHOT } from "@/contexts/DemoContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { User, Calendar, Settings, LogOut, ChevronRight, BookOpen, CheckSquare, Square, ExternalLink } from "lucide-react";
 
@@ -70,6 +71,7 @@ export default function Profile() {
   const [, setLocation] = useLocation();
   const search = useSearch();
   const { signOut, getTokenAsync } = useAuth();
+  const { isDemoMode } = useDemo();
 
   const initialTab: ProfileTab = search.includes("settings") ? "settings" : "overview";
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
@@ -94,6 +96,17 @@ export default function Profile() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
+    if (isDemoMode) {
+      setProfile(DEMO_PROFILE as RemoteProfile);
+      setFirstName(DEMO_PROFILE.first_name);
+      setLastName(DEMO_PROFILE.last_name);
+      setSessions([{ id: "demo-session-1", session_number: 1, created_at: DEMO_PROFILE.last_session_ended_at }]);
+      setResources(DEMO_RESOURCES as StoredResource[]);
+      setCheckedResourcesState({});
+      setLoading(false);
+      return;
+    }
+
     const load = async () => {
       setLoading(true);
       try {
@@ -129,7 +142,7 @@ export default function Profile() {
       setResources(stored);
     } catch { /* silent */ }
     setCheckedResourcesState(getCheckedResources());
-  }, [getTokenAsync]);
+  }, [isDemoMode, getTokenAsync]);
 
   const toggleResourceCheck = (title: string) => {
     const updated = { ...checkedResources, [title]: !checkedResources[title] };
@@ -171,6 +184,12 @@ export default function Profile() {
     setExpandedSession(session.id);
     setSessionSnapshot(null);
     setLoadingSnapshot(true);
+
+    if (isDemoMode) {
+      setSessionSnapshot({ ...DEMO_SNAPSHOT, narrative_blurb: DEMO_SESSION_SUMMARY } as unknown as SnapshotSummary);
+      setLoadingSnapshot(false);
+      return;
+    }
 
     // Find snapshot closest in time to this session
     const sessionTime = new Date(session.created_at).getTime();

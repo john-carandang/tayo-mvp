@@ -1,0 +1,69 @@
+**Context:** Tayo's onboarding requires a 25–30 minute voice intake session before a user can access the dashboard, coaching session, and strategic plan. We need a demo mode that bypasses the intake flow and loads a pre-built mock user profile so the founder can quickly review and test all product features without completing a real session.
+
+**Task:** Create a self-contained demo mode accessible via a dedicated route (`/demo`) that loads a fully seeded mock user and drops directly into the authenticated app experience. This must be a development/testing tool only — never visible or accessible to real users.
+
+**Requirements:**
+
+**Route and access:**
+- Create a new route `/demo` in the app
+- This route must only be accessible when the environment variable `DEMO_MODE_ENABLED=true` is set in Replit Secrets — if the variable is absent or false, the route returns a 404
+- Do not link to `/demo` from anywhere in the public-facing UI (no button, no nav link, no mention)
+- No authentication required to access `/demo` — it bypasses Supabase auth entirely and injects a mock session client-side
+
+**Mock user profile — seed the following data:**
+
+User identity:
+- Name: `Alex Rivera`
+- Age: `28`
+- Location: `San Francisco, CA`
+
+Voice intake summary (pre-populated as if intake was completed):
+- `"Alex is a first-generation Filipino-American working in tech operations at a mid-size startup. They're at a crossroads — successful on paper but feeling disconnected from their work and unsure whether to pursue a career pivot, go back to school, or stay the course. Core values: family, creativity, integrity, and impact. Currently navigating a difficult relationship with their manager, a recent breakup, and a desire to get back to consistent physical activity. Biggest question: am I living the life I actually want, or the one I thought I should want?"`
+
+Five-dimension dashboard scores (scale 1–10):
+- Mental / Emotional: `6`
+- Career: `4`
+- Physical: `5`
+- Social / Relationships: `5`
+- Financial: `7`
+
+Journey to Date (3 milestone entries):
+- `"Started first corporate job after graduating — felt proud but quickly realized the work didn't energize me the way I hoped."`
+- `"Moved to San Francisco at 25 — built independence, grew my network, but also felt the pressure of keeping up with peers."`
+- `"Began therapy in 2023 — first time I actively invested in understanding myself. Opened a lot of doors."`
+
+Strategic plan (3 focus areas):
+- Career: `"Explore what a values-aligned career pivot looks like over the next 12 months — start with informational conversations in 3 adjacent fields before making any decisions."`
+- Physical: `"Re-establish a consistent movement routine — start with 20 minutes 3x/week, no pressure on intensity. Treat it as mental health maintenance, not fitness optimization."`
+- Relationships: `"Have one honest conversation with my manager about workload and recognition within the next 30 days. Prepare talking points in advance."`
+
+Next Moves (3 action items):
+- `"Schedule 2 informational interviews in fields I'm curious about — due in 2 weeks"`
+- `"Block 3 movement sessions on calendar this week — non-negotiable"`
+- `"Draft talking points for manager conversation — due by Friday"`
+
+Previous session summary:
+- `"In our first session, Alex explored the tension between external success and internal fulfillment. Key themes: identity, belonging, and the fear of making the wrong choice. Alex left with more clarity that the discomfort they're feeling is a signal worth listening to, not a problem to solve quickly."`
+
+**Demo mode UI indicator:**
+- Show a persistent non-intrusive banner at the very top of the screen (full width, `height: 32px`, `background: #1C1812`, `color: #D4A847`, `font-size: 12px`, centered text): `"Demo mode — mock data only. Not a real user session."`
+- This banner must appear on every page while in demo mode
+- Add an `✕` button on the right side of the banner that dismisses it for the session (does not disable demo mode, just hides the banner)
+
+**Behavior:**
+- Entering `/demo` should drop the user directly into the main authenticated app view (dashboard) — skip the landing page, skip the intake flow, skip auth screens
+- All five app tabs/sections must be accessible and populated with mock data: Dashboard, Coaching session, Strategic Plan, Next Moves, and any Profile view
+- The AI coaching session tab should work normally — it should use the mock user's profile as context for the Claude API call so coaching responses feel relevant to Alex's situation. Pass the mock intake summary and dashboard scores as the system prompt context
+- Any "Start new session" or "Begin intake" buttons should be hidden or replaced with a disabled state labeled `"Intake complete"` so the demo doesn't accidentally re-trigger onboarding
+- Do not write any mock data to Supabase — keep all demo state in memory (React state or context) only. Nothing persists after the session ends
+
+**Security & Privacy:**
+- `DEMO_MODE_ENABLED` must be stored as a Replit Secret, never hardcoded
+- The `/demo` route must return 404 in production if the secret is not set
+- No real user data is touched, read, or written during demo mode
+- Mock data must never appear in any Supabase table — enforce this by bypassing all DB calls when demo mode is active (use an `isDemoMode` flag to short-circuit any Supabase reads/writes)
+- Do not log any mock data to the console
+
+**UI/UX:** The demo experience should feel identical to the real product — same styling, same components, same interactions. The only difference is the data source (memory instead of Supabase) and the yellow demo banner at the top. A reviewer should be able to navigate every screen, trigger the AI coaching session, and experience the full product in under 5 minutes.
+
+**Verification:** After completing, confirm: (1) `/demo` loads directly to the dashboard with Alex Rivera's mock data pre-populated across all five dimensions, (2) the demo banner appears at the top of every screen, (3) the AI coaching session tab is functional and responds with context-aware replies based on the mock profile, (4) no Supabase reads or writes occur during the demo session — verify by checking the Supabase dashboard after a full demo walkthrough and confirming no new rows were created, (5) navigating to `/demo` with `DEMO_MODE_ENABLED` unset or false returns a 404, (6) the route is not linked from anywhere in the public UI.

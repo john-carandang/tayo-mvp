@@ -141,6 +141,19 @@ Run `supabase/migrations/001_initial.sql` first, then `002_v31.sql` in Supabase 
 
 Legacy V3.0 voice IDs are kept in allowlists for backward compat.
 
+## Demo Mode
+
+A self-contained demo experience for founder review without Supabase auth.
+
+- **Route**: `/demo` (only accessible when `DEMO_MODE_ENABLED=true` is set as dev env var)
+- **Activation**: Navigating to `/demo` sets `isDemoMode = true` in `DemoContext`, saves to `sessionStorage`, redirects to `/dashboard`
+- **Security**: Returns 404 if `DEMO_MODE_ENABLED` is not set; zero Supabase reads/writes during demo
+- **Mock user**: Alex Rivera, 28, San Francisco — pre-seeded across all pages
+- **Banner**: Fixed 32px dark bar at top with gold text "Demo mode — mock data only. Not a real user session." — dismissable with ✕ (persisted in sessionStorage)
+- **Behavior**: All 5 areas accessible (Dashboard 3 tabs, Next Moves, Profile); "Intake complete" disabled button replaces session CTA; "Start a coaching session →" link navigates to /warmup with Alex's context pre-loaded
+- **Coaching session**: When entering /intake in demo mode, system prompt is pre-seeded with Alex's full profile context (no Supabase reads; no profile written to localStorage/Supabase after session)
+- **Context file**: `artifacts/tayo/src/contexts/DemoContext.tsx` — all mock data + provider
+
 ## Environment Variables Required
 
 - `ANTHROPIC_API_KEY` — Claude AI
@@ -149,6 +162,7 @@ Legacy V3.0 voice IDs are kept in allowlists for backward compat.
 - `SUPABASE_URL` — Supabase project URL (frontend reads via Vite define)
 - `SUPABASE_ANON_KEY` — Supabase public key (frontend reads via Vite define)
 - `SUPABASE_SERVICE_ROLE_KEY` — Supabase admin key (server-side only)
+- `DEMO_MODE_ENABLED` — set to `"true"` in development env only to enable /demo route
 
 ## LocalStorage Keys
 

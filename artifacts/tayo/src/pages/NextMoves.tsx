@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemo, DEMO_ASSIGNMENTS, DEMO_RESOURCES, DEMO_PROFILE } from "@/contexts/DemoContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { CheckCircle2, Circle, Clock, Lock } from "lucide-react";
 
@@ -30,6 +31,7 @@ const TYPE_LABELS: Record<string, string> = { daily_habit: "Daily habit", one_of
 export default function NextMoves() {
   const [, setLocation] = useLocation();
   const { getTokenAsync } = useAuth();
+  const { isDemoMode } = useDemo();
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -43,6 +45,15 @@ export default function NextMoves() {
   const [firstName, setFirstName] = useState<string | undefined>();
 
   useEffect(() => {
+    if (isDemoMode) {
+      setAssignments(DEMO_ASSIGNMENTS);
+      setResources(DEMO_RESOURCES as Resource[]);
+      setFirstName(DEMO_PROFILE.first_name);
+      setSessionLocked(false);
+      setLoading(false);
+      return;
+    }
+
     const load = async () => {
       setLoading(true);
       try {
@@ -109,9 +120,15 @@ export default function NextMoves() {
       setLoading(false);
     };
     load();
-  }, [getTokenAsync]);
+  }, [isDemoMode, getTokenAsync]);
 
   const markComplete = async (id: string) => {
+    if (isDemoMode) {
+      setAssignments(a => a.map(x => x.id === id ? { ...x, status: "complete" } : x));
+      setReflectionOpen(id);
+      setReflectionText("");
+      return;
+    }
     const tok = await getTokenAsync();
     if (!tok) return;
     try {
@@ -127,6 +144,13 @@ export default function NextMoves() {
   };
 
   const saveReflection = async (id: string) => {
+    if (isDemoMode) {
+      if (!reflectionText.trim()) return;
+      setAssignments(a => a.map(x => x.id === id ? { ...x, reflection: reflectionText } : x));
+      setReflectionOpen(null);
+      setReflectionText("");
+      return;
+    }
     const tok = await getTokenAsync();
     if (!tok || !reflectionText.trim()) return;
     setSavingReflection(true);
@@ -168,23 +192,32 @@ export default function NextMoves() {
           animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl p-5 mb-8 flex items-center justify-between gap-4"
           style={{
-            backgroundColor: sessionLocked ? "rgba(44,24,16,0.04)" : "rgba(196,98,45,0.06)",
-            border: `1px solid ${sessionLocked ? "rgba(44,24,16,0.08)" : "rgba(196,98,45,0.2)"}`,
+            backgroundColor: (isDemoMode || sessionLocked) ? "rgba(44,24,16,0.04)" : "rgba(196,98,45,0.06)",
+            border: `1px solid ${(isDemoMode || sessionLocked) ? "rgba(44,24,16,0.08)" : "rgba(196,98,45,0.2)"}`,
           }}
         >
           <div>
             <p className="text-sm font-semibold" style={{ color: "#2C1810" }}>
-              {sessionLocked
-                ? `Next session unlocks in ${daysUntilUnlock} ${daysUntilUnlock === 1 ? "day" : "days"}`
-                : "Your next session is ready"}
+              {isDemoMode
+                ? "Intake complete"
+                : sessionLocked
+                  ? `Next session unlocks in ${daysUntilUnlock} ${daysUntilUnlock === 1 ? "day" : "days"}`
+                  : "Your next session is ready"}
             </p>
             <p className="text-xs mt-0.5" style={{ color: "#9B8E84" }}>
-              {sessionLocked
-                ? "Use this time to work through your commitments below."
-                : "Find a quiet space and give yourself 25–30 minutes."}
+              {isDemoMode
+                ? "Work through your commitments below."
+                : sessionLocked
+                  ? "Use this time to work through your commitments below."
+                  : "Find a quiet space and give yourself 25–30 minutes."}
             </p>
           </div>
-          {sessionLocked ? (
+          {isDemoMode ? (
+            <div className="flex items-center gap-1.5 flex-shrink-0 opacity-50 cursor-not-allowed">
+              <CheckCircle2 className="w-4 h-4" style={{ color: "#7A9E87" }} />
+              <span className="text-xs font-semibold" style={{ color: "#746A5A" }}>Done</span>
+            </div>
+          ) : sessionLocked ? (
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <Lock className="w-4 h-4" style={{ color: "#9B8E84" }} />
               <div className="flex flex-col items-center">

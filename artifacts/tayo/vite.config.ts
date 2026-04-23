@@ -31,6 +31,7 @@ export default defineConfig({
   define: {
     __SUPABASE_URL__: JSON.stringify(process.env.SUPABASE_URL || ""),
     __SUPABASE_ANON_KEY__: JSON.stringify(process.env.SUPABASE_ANON_KEY || ""),
+    __DEMO_MODE_ENABLED__: process.env.DEMO_MODE_ENABLED === "true",
   },
   plugins: [
     react(),
