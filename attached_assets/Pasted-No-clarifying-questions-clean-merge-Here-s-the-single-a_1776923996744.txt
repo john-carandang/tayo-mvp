@@ -1,0 +1,137 @@
+No clarifying questions — clean merge. Here's the single aggregate prompt:
+
+---
+
+**Context:** The Tayo Next Moves page currently has a basic commitments list, a 2x2 hardcoded resource grid, and no songs, purchases, or personalized recommendation logic. We are rebuilding the entire Next Moves page in one pass: restructuring the layout, making commitments fully interactive, replacing all hardcoded content with Claude-generated personalized recommendations, and adding songs, Instagram profiles, and suggested purchases as new content types — all informed by the user's intake summary, session history, uploaded materials, and profile context.
+
+**Task:** Full rebuild of the Next Moves page content and recommendation engine. No changes to the Dashboard, Session, or Warm-Up pages.
+
+---
+
+**Part 1 — Commitments section**
+
+- Replace subtitle `"What you said you'd do before your next session."` with `"What you seek to do before your next session."`
+- Commitments must be fully toggle-able in both directions — checking marks complete, clicking again unchecks and restores to active state. Currently checked items cannot be unchecked; fix this
+- Add a relevant emoji or small inline SVG icon to the left of each commitment label. Use contextually appropriate icons. In demo mode, assign:
+  - "Schedule 2 informational interviews" → 📅
+  - "Block 3 movement sessions on calendar" → 🏃
+  - "Draft talking points for manager conversation" → 💬
+- When a commitment is checked OR unchecked, show a small inline text area immediately below it: `"Add a quick reflection (1–2 sentences) — this will inform your next session."`, `placeholder: "What came up for you around this?"`, `max-length: 280`, serif font, warm border treatment matching existing form elements
+- Store reflection text in React component state only for demo mode. For authenticated production users, write to a `commitment_reflections` field in the user's session record in Supabase with RLS enforced — only the authenticated user can write or read their own reflections
+
+---
+
+**Part 2 — Resources section: layout**
+
+- Remove the current 2x2 grid layout entirely
+- Replace with a single vertically stacked column of subsections by resource type, each separated by a faint divider: `border-top: 0.5px solid rgba(60,40,20,0.10)`, `padding-top: 24px`, `margin-top: 24px`
+- Subsection render order (descending):
+  1. Books
+  2. Articles
+  3. Podcasts
+  4. Videos / YouTube
+  5. Songs
+  6. People worth following *(Instagram profiles)*
+  7. Things that could help *(suggested purchases)*
+- Each subsection has an eyebrow label in existing app style: sans-serif, `font-size: 12px`, `font-weight: 500`, `letter-spacing: 0.10em`, `text-transform: uppercase`, `color: #C4622D`, `margin-bottom: 12px`
+- Only render a subsection if it has at least one item — never render an empty subsection with just a label
+- Each resource card: full width, `background: #fff`, `border: 0.5px solid rgba(60,40,20,0.12)`, `border-radius: 12px`, `padding: 20px 24px`, `margin-bottom: 10px`
+
+---
+
+**Part 3 — Resource card anatomy (all types)**
+
+Every card (books, articles, podcasts, videos, songs, Instagram, purchases) must contain:
+
+- **Title:** `font-weight: 500`, `font-size: 16px`, `color: #1C1812`
+- **Description:** one sentence, `font-size: 14px`, `color: #5a4a3f`, serif
+- **Rationale:** `"Why this: ..."` — one sentence starting with `"You mentioned..."` or `"Based on..."` connecting the recommendation to something specific in the user's intake or session. `font-size: 13px`, `font-style: italic`, `color: #8a7060`
+- **Checkmark toggle** (top-right corner, small circular checkbox): unchecked by default. Checked state: `background: #2A6B63`, checkmark `color: #F7F0E0`, label `"Mark as reviewed"`. For Instagram and purchase cards, label is `"Noted"` instead
+- **Reflection prompt on check:** inline text area appearing below card when toggled: `placeholder` varies by type (see below), `max-length: 280`, same serif warm styling as commitment reflections. Store in React state (demo) or Supabase session record (production)
+- **Action link/button:** type-specific, see below
+- All external links: `target="_blank" rel="noopener noreferrer"`
+
+**Type-specific card details:**
+
+- **Books:** CTA `"View book"` linking to author site or major retailer. Reflection placeholder: `"What resonated or surprised you?"`
+- **Articles:** CTA `"Read article"` linking to direct article URL. Reflection placeholder: `"What's one thing you're taking away?"`
+- **Podcasts:** CTA `"Listen"` linking to episode URL if known, otherwise show URL. Reflection placeholder: `"What hit home for you?"`
+- **Videos:** CTA `"Watch"` linking to direct YouTube video URL. Reflection placeholder: `"What did this bring up for you?"`
+- **Songs:** Title format: `"[Song Title] — [Artist]"`. CTA: `"Listen on YouTube"` linking to `https://www.youtube.com/results?search_query=[URL-encoded artist + title]`. Reflection placeholder: `"What did this bring up for you?"`
+- **Instagram profiles:** Title = handle (e.g. `@jayshetty`). CTA: `"View profile"` linking to `https://www.instagram.com/[handle]`. Reflection placeholder: `"What about this person resonates with you?"`
+- **Suggested purchases:** Title = product name. CTA: `"Learn more"` as a burnt orange pill button (`font-size: 13px`, `padding: 6px 16px`) linking to product URL. Reflection placeholder: `"Would this actually help you? Why or why not?"`
+
+---
+
+**Part 4 — Dynamic Claude-generated recommendations**
+
+Replace all hardcoded resource arrays with a single server-side Claude API call that generates all recommendations across all seven types.
+
+**Trigger:** Once per session on Next Moves page load if recommendations have not yet been generated. Cache result by `userId + sessionId` — never re-fire on page refresh or re-render.
+
+**Claude API call spec:**
+- Model: `claude-sonnet-4-20250514`
+- Max tokens: `2000`
+- API call made server-side only (API route) — Anthropic API key never exposed to client
+
+**System prompt (construct server-side):**
+```
+You are Tayo's recommendation engine. Based on the user context provided, generate a personalized set of recommendations across seven categories: books, articles, podcasts, videos, songs, instagram, and purchases.
+
+For each item return a JSON object with these exact fields:
+- type: one of "book" | "article" | "podcast" | "video" | "song" | "instagram" | "purchase"
+- title: resource title, song name + artist (e.g. "Gravity — John Mayer"), Instagram handle (e.g. "@jayshetty"), or product name
+- description: one sentence on what it is
+- rationale: one sentence starting with "You mentioned..." or "Based on..." connecting this to something specific in the user's context
+- url: the most accurate direct URL available. For songs use https://www.youtube.com/results?search_query=[URL-encoded artist+title]. For Instagram use https://www.instagram.com/[handle]. For books use author site or major retailer. For articles use direct article URL. For podcasts use episode URL if known. For purchases use direct product page.
+- artist: (songs only) artist name as a separate string field
+
+Rules:
+- Purchase recommendations must be strictly limited to: fitness/wellness products, books/courses, experiences (concerts, travel, cultural events), therapy/coaching platforms, or mindfulness tools. Never recommend alcohol, gambling, fast food, or unrelated consumer goods.
+- Instagram recommendations must be genuine public figures or creators — no private accounts, no brands, no accounts likely to have changed handles.
+- Return ONLY a valid JSON array. No preamble, no markdown, no explanation. If you cannot confidently recommend something in a category, omit that category entirely rather than fabricating.
+- Aim for 2–3 items per category, 7 categories maximum.
+```
+
+**User message — construct dynamically from:**
+- Intake summary (`user.intakeSummary`)
+- Last session summary (`user.lastSessionSummary`)
+- Dashboard dimension scores (`user.dimensions`)
+- Core values and focus areas from Strategic Plan
+- Uploaded intake file content — if user uploaded a PDF or image during warm-up, pass extracted text or description labeled: `"Uploaded intake material: [content]"`
+
+Sanitize all user-provided content before including in the prompt — strip any string matching patterns like `"ignore previous instructions"`, `"system:"`, or similar injection attempts.
+
+**Error handling:**
+- Wrap JSON parse in try/catch
+- If parsing fails or API call errors, fall back silently to hardcoded default recommendations (keep existing mock data as fallback)
+- Log parse errors server-side only — never client-side, never to console in production
+
+**Demo mode:**
+- Call the Claude API using Alex Rivera's full mock profile as the user message — recommendations must feel genuinely personalized to Alex, not generic
+- If `DEMO_MODE_ENABLED=true` and the API call fails, fall back to hardcoded demo resources
+- Store all reflection text in React state only — no Supabase writes in demo mode
+
+**Demo mode seed fallback data** (used only if Claude call fails) — one item per type minimum:
+- Book: `"Designing Your Life"` / `"https://designingyour.life"` / `"You mentioned feeling like you're living the life you thought you should want — this book offers a practical framework for redesigning from scratch."`
+- Article: `"Feeling Good at Work"` / `"https://hbr.org/2011/05/making-yourself-indispensable"` / `"You described work feeling misaligned with your values — this piece speaks directly to that tension."`
+- Podcast: `"The Tim Ferriss Show — How to Design a Life"` / `"https://tim.blog/2020/01/13/how-to-design-a-life-debbie-millman/"` / `"Alex is navigating a career crossroads — this episode walks through intentional life design with concrete tools."`
+- Video: `"Burnout to Balance — The Anatomy of Overwhelm"` / `"https://www.youtube.com/watch?v=jqONINYF17M"` / `"The overwhelm and identity pressure you described maps closely to what this video addresses."`
+- Song: `"Gravity — John Mayer"` / YouTube search URL / `"You're navigating a pull between who you are and who you feel you're supposed to be — this song holds that tension honestly."`
+- Instagram: `@dr.thema` / `"https://www.instagram.com/dr.thema"` / `"Based on your values around identity and belonging, this voice offers grounded, culturally rooted perspective."`
+- Purchase: `"Fitbit Charge 6"` / `"https://www.fitbit.com/global/us/products/trackers/charge6"` / `"You want movement as mental health maintenance — tracking helps make it real and sustainable."`
+
+---
+
+**Security & Privacy:**
+- Claude API key server-side only — confirm by checking no Anthropic key appears in any client-side network request
+- Never include passwords, email addresses, or Supabase auth tokens in the Claude prompt
+- Sanitize all user input before passing to Claude — strip injection patterns server-side
+- All outbound links: `rel="noopener noreferrer"` and `target="_blank"` — no user data in URL parameters
+- Purchase recommendations never include affiliate tracking parameters
+- Reflection text: React state only in demo mode; authenticated user Supabase session record with RLS in production
+- Never log reflection text or intake content to any console
+
+**UI/UX:** The stacked subsection layout should feel like a thoughtfully curated personal reading and listening list — calm, unhurried, easy to scan top to bottom. The rationale line on every card is the most important element: it makes the user feel seen and understood, not served an algorithm. Songs sit naturally alongside books and articles — not as a novelty feature but as a legitimate emotional tool. Purchase recommendations feel like a trusted friend's suggestions, not a shop.
+
+**Verification:** After completing, confirm: (1) commitments are fully toggle-able in both directions with emoji icons and inline reflection prompts, (2) resources render as stacked subsections in correct order — Books → Articles → Podcasts → Videos → Songs → People worth following → Things that could help, (3) empty subsections are suppressed, (4) all recommendation content is Claude-generated using user context — not hardcoded, (5) Claude API call fires once per session and does not re-fire on page refresh — confirm via browser network tab, (6) Anthropic API key is absent from all client-side network requests, (7) songs display "Listen on YouTube" with accurate search URL links, (8) purchase cards are limited to wellness/experience/growth categories only, (9) all external links open in new tabs with `rel="noopener noreferrer"`, (10) fallback to hardcoded seed data if Claude call fails, (11) reflection prompts appear on check/uncheck of all card types, (12) no Supabase writes occur during demo mode.

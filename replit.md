@@ -164,12 +164,22 @@ A self-contained demo experience for founder review without Supabase auth.
 - `SUPABASE_SERVICE_ROLE_KEY` — Supabase admin key (server-side only)
 - `DEMO_MODE_ENABLED` — set to `"true"` in development env only to enable /demo route
 
+## Next Moves Page (V3.1 rebuilt)
+
+Resources are Claude-generated via `POST /api/recommendations` (server-side, API key never exposed to client).
+
+- **Commitments**: Fully bidirectional toggle (pending ↔ complete). Emoji per commitment (demo-specific or type-based). Reflection textarea appears on both check AND uncheck. Reflection stored in-memory (demo) or Supabase session record (production).
+- **Resources**: Vertically stacked by type subsections: Books → Articles → Podcasts → Videos / YouTube → Songs → People worth following (Instagram) → Things that could help (purchases). Each card has: title, description (serif), rationale ("Why this: ..."), action CTA, and "Mark as reviewed" / "Noted" circular checkbox top-right. Checked = teal; reflection prompt appears on toggle.
+- **Recommendation engine**: `POST /api/recommendations` — `{ demoMode: true }` (no auth) or `{ userContext, cacheKey }` + Bearer token. Server-side in-memory cache by userId / "demo" key. Falls back to DEMO_FALLBACK on Claude error. Demo caches result in sessionStorage `tayo_recs_demo`. Model: `claude-sonnet-4-20250514`.
+- **Resource types**: `"book" | "article" | "podcast" | "video" | "song" | "instagram" | "purchase"`
+
 ## LocalStorage Keys
 
 - `tayo_profile` — TayoProfile JSON (cached locally for fallback)
 - `tayo_coach_voice_id` — selected coach ElevenLabs voice ID
 - `tayo_coach_id` — selected coach ID (maya/carlos/aisha/james)
 - `tayo_warmup` — warmup data (music, youtube, media, photos)
+- `tayo_resources` — persisted resource recommendations (latest, max 50)
 
 ## Vite Configuration
 

@@ -1,17 +1,16 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "../middleware/requireAuth.js";
-import { supabase } from "../lib/supabase.js";
+import { supabase, verifyUserToken } from "../lib/supabase.js";
 
 const router: IRouter = Router();
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const ALLOWED_VOICES = [
-  "XeomjLZoU5rr4yNIg16w", // Maya V3.1
-  "1fz2mW1imKTf5Ryjk5su", // Carlos V3.1
-  "zwbQ2XUiIlOKD6b3JWXd", // Aisha V3.1
-  "ePEc9tlhrIO7VRkiOlQN", // James V3.1
-  // Legacy V3.0 IDs (keep for existing users)
+  "XeomjLZoU5rr4yNIg16w",
+  "1fz2mW1imKTf5Ryjk5su",
+  "zwbQ2XUiIlOKD6b3JWXd",
+  "ePEc9tlhrIO7VRkiOlQN",
   "EXAVITQu4vr4xnSDxMaL",
   "VR6AewLTigWG4xSOukaG",
   "MF3mGyEYCl7XYWbV9V6O",
@@ -22,6 +21,196 @@ function sanitizeText(value: unknown, maxLen: number): string {
   if (typeof value !== "string") return "";
   return value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, maxLen).trim();
 }
+
+function sanitizeForPrompt(value: unknown, maxLen: number): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+    .replace(/ignore\s+previous\s+instructions/gi, "[redacted]")
+    .replace(/system\s*:/gi, "[redacted]")
+    .replace(/<\s*system\s*>/gi, "[redacted]")
+    .replace(/you\s+are\s+now\s+/gi, "[redacted] ")
+    .replace(/forget\s+(?:all|everything)/gi, "[redacted]")
+    .slice(0, maxLen)
+    .trim();
+}
+
+// ─── Recommendations ──────────────────────────────────────────────────────────
+
+interface RecommendedResource {
+  type: string;
+  title: string;
+  description: string;
+  rationale: string;
+  url: string;
+  artist?: string;
+}
+
+const recommendationsCache = new Map<string, RecommendedResource[]>();
+
+const DEMO_FALLBACK: RecommendedResource[] = [
+  {
+    type: "book",
+    title: "Designing Your Life",
+    description: "Bill Burnett & Dave Evans apply design thinking to career and life decisions.",
+    rationale: "You mentioned feeling like you're living the life you thought you should want — this book offers a practical framework for redesigning from scratch.",
+    url: "https://designingyour.life",
+  },
+  {
+    type: "article",
+    title: "Feeling Good at Work",
+    description: "Harvard Business Review on re-aligning work with personal values.",
+    rationale: "You described work feeling misaligned with your values — this piece speaks directly to that tension.",
+    url: "https://hbr.org/2011/05/making-yourself-indispensable",
+  },
+  {
+    type: "podcast",
+    title: "The Tim Ferriss Show — How to Design a Life",
+    description: "Debbie Millman walks through intentional life design with concrete tools.",
+    rationale: "Alex is navigating a career crossroads — this episode walks through intentional life design with concrete tools.",
+    url: "https://tim.blog/2020/01/13/how-to-design-a-life-debbie-millman/",
+  },
+  {
+    type: "video",
+    title: "Burnout to Balance — The Anatomy of Overwhelm",
+    description: "A research-backed look at stress, identity, and sustainable recovery.",
+    rationale: "The overwhelm and identity pressure you described maps closely to what this video addresses.",
+    url: "https://www.youtube.com/watch?v=jqONINYF17M",
+  },
+  {
+    type: "song",
+    title: "Gravity — John Mayer",
+    description: "A guitar-driven meditation on the tension between ambition and authenticity.",
+    rationale: "You're navigating a pull between who you are and who you feel you're supposed to be — this song holds that tension honestly.",
+    url: "https://www.youtube.com/results?search_query=Gravity+John+Mayer",
+    artist: "John Mayer",
+  },
+  {
+    type: "instagram",
+    title: "@dr.thema",
+    description: "Dr. Thema Bryant — psychologist offering culturally rooted perspective on identity and healing.",
+    rationale: "Based on your values around identity and belonging, this voice offers grounded, culturally rooted perspective.",
+    url: "https://www.instagram.com/dr.thema",
+  },
+  {
+    type: "purchase",
+    title: "Fitbit Charge 6",
+    description: "A fitness tracker that helps build consistent movement habits with real data.",
+    rationale: "You want movement as mental health maintenance — tracking helps make it real and sustainable.",
+    url: "https://www.fitbit.com/global/us/products/trackers/charge6",
+  },
+];
+
+const ALEX_CONTEXT = `Name: Alex Rivera, 28, San Francisco, first-generation Filipino-American
+Role: Tech operations at a mid-size startup
+Core values: Family, Creativity, Integrity, Impact
+Intake summary: Successful on paper but feeling deeply disconnected from work. Navigating whether to pivot careers, return to school, or stay the course. Themes: identity, belonging, fear of making the wrong choice.
+Dimension scores: Mental/Emotional 6/10, Career 3/10, Physical 5/10, Social/Relationships 5/10, Financial 7/10
+Strengths: Self-awareness, resilience, network building, intellectual curiosity
+Challenges: Analysis paralysis from fear of wrong choices, external validation over internal compass, difficulty setting boundaries at work
+Focus areas: Career values-aligned pivot over 12 months, re-establishing 3x/week movement as mental health maintenance, one honest manager conversation about workload and recognition within 30 days
+Current commitments: Schedule 2 informational interviews in adjacent fields (due in 2 weeks), block 3 movement sessions/week, draft talking points for manager conversation (due Friday)`;
+
+const RECOMMENDATIONS_SYSTEM_PROMPT = `You are Tayo's recommendation engine. Based on the user context provided, generate a personalized set of recommendations across seven categories: books, articles, podcasts, videos, songs, instagram, and purchases.
+
+For each item return a JSON object with these exact fields:
+- type: one of "book" | "article" | "podcast" | "video" | "song" | "instagram" | "purchase"
+- title: resource title, song name + artist (e.g. "Gravity — John Mayer"), Instagram handle (e.g. "@jayshetty"), or product name
+- description: one sentence on what it is
+- rationale: one sentence starting with "You mentioned..." or "Based on..." connecting this to something specific in the user's context
+- url: the most accurate direct URL available. For songs use https://www.youtube.com/results?search_query=[URL-encoded artist+title]. For Instagram use https://www.instagram.com/[handle]. For books use author site or major retailer. For articles use direct article URL. For podcasts use episode URL if known. For purchases use direct product page.
+- artist: (songs only) artist name as a separate string field
+
+Rules:
+- Purchase recommendations must be strictly limited to: fitness/wellness products, books/courses, experiences (concerts, travel, cultural events), therapy/coaching platforms, or mindfulness tools. Never recommend alcohol, gambling, fast food, or unrelated consumer goods.
+- Instagram recommendations must be genuine public figures or creators — no private accounts, no brands, no accounts likely to have changed handles.
+- Return ONLY a valid JSON array. No preamble, no markdown, no explanation. If you cannot confidently recommend something in a category, omit that category entirely rather than fabricating.
+- Aim for 2–3 items per category, 7 categories maximum.`;
+
+// POST /api/recommendations — demo (no auth) or production (requires auth)
+router.post("/recommendations", async (req: Request, res: Response) => {
+  try {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const isDemoMode = body.demoMode === true;
+
+    let cacheKey: string;
+    let userContext: string;
+
+    if (isDemoMode) {
+      cacheKey = "demo";
+      userContext = ALEX_CONTEXT;
+    } else {
+      // Require auth for production path
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith("Bearer ")) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      const token = authHeader.slice(7);
+      const userId = await verifyUserToken(token);
+      if (!userId) {
+        res.status(401).json({ error: "Invalid or expired token" });
+        return;
+      }
+      cacheKey = userId;
+
+      const ctx = body.userContext && typeof body.userContext === "object" ? body.userContext : {};
+      const parts: string[] = [];
+      if (ctx.intakeSummary) parts.push(`Intake summary: ${sanitizeForPrompt(ctx.intakeSummary, 2000)}`);
+      if (ctx.lastSessionSummary) parts.push(`Last session summary: ${sanitizeForPrompt(ctx.lastSessionSummary, 2000)}`);
+      if (ctx.dimensions) parts.push(`Dimension scores: ${sanitizeForPrompt(JSON.stringify(ctx.dimensions), 1000)}`);
+      if (ctx.coreValues) {
+        const vals = Array.isArray(ctx.coreValues) ? ctx.coreValues.join(", ") : String(ctx.coreValues);
+        parts.push(`Core values: ${sanitizeForPrompt(vals, 500)}`);
+      }
+      if (ctx.focusAreas) {
+        const areas = Array.isArray(ctx.focusAreas) ? ctx.focusAreas.join("; ") : String(ctx.focusAreas);
+        parts.push(`Focus areas: ${sanitizeForPrompt(areas, 1000)}`);
+      }
+      if (ctx.strengths) {
+        const s = Array.isArray(ctx.strengths) ? ctx.strengths.join(", ") : String(ctx.strengths);
+        parts.push(`Strengths: ${sanitizeForPrompt(s, 500)}`);
+      }
+      userContext = parts.join("\n") || "No context provided";
+    }
+
+    // Check server-side cache
+    if (recommendationsCache.has(cacheKey)) {
+      res.json({ resources: recommendationsCache.get(cacheKey), cached: true });
+      return;
+    }
+
+    // Call Claude
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      system: RECOMMENDATIONS_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userContext }],
+    });
+
+    const raw = response.content[0].type === "text" ? response.content[0].text : "[]";
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+
+    let resources: RecommendedResource[];
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (!Array.isArray(parsed)) throw new Error("not array");
+      resources = parsed;
+    } catch {
+      req.log.error("Recommendations JSON parse failed");
+      resources = isDemoMode ? DEMO_FALLBACK : [];
+    }
+
+    recommendationsCache.set(cacheKey, resources);
+    res.json({ resources, cached: false });
+  } catch (err) {
+    req.log.error({ err }, "Recommendations error");
+    const isDemoMode = (req.body && typeof req.body === "object" && req.body.demoMode === true);
+    res.json({ resources: isDemoMode ? DEMO_FALLBACK : [], fallback: true });
+  }
+});
+
+// ─── Assignments ──────────────────────────────────────────────────────────────
 
 // GET /api/assignments
 router.get("/assignments", requireAuth, async (req: Request, res: Response) => {
@@ -125,13 +314,12 @@ router.patch("/assignments/:id", requireAuth, async (req: Request, res: Response
   }
 });
 
-// POST /api/resources — AI-generated resource recommendations
+// POST /api/resources — legacy route (kept for backward compat)
 router.post("/resources", requireAuth, async (req: Request, res: Response) => {
   try {
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const profileStr = JSON.stringify(body.profile ?? {}).slice(0, 10000);
 
-    // Include warmup data if available for culturally relevant recommendations
     const warmupData = body.warmup_data && typeof body.warmup_data === "object" ? body.warmup_data : null;
     const warmupContext = warmupData ? `
 User's cultural touchpoints:
@@ -140,7 +328,6 @@ User's cultural touchpoints:
 - Books/shows/podcasts: ${warmupData.media || "not shared"}
 Use these to make resource recommendations feel personally and culturally relevant.` : "";
 
-    // PRIVACY: Sends user's profile and warm-up preferences to Claude for resource generation.
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 1000,

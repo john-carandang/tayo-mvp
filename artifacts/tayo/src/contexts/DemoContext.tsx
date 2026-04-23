@@ -3,6 +3,16 @@ import type { TayoDimension, TayoLifeEvent } from "@/hooks/use-tayo-state";
 
 declare const __DEMO_MODE_ENABLED__: boolean;
 
+// ─── Resource type ─────────────────────────────────────────────────────────────
+export interface RecommendedResource {
+  type: "book" | "article" | "podcast" | "video" | "song" | "instagram" | "purchase";
+  title: string;
+  description: string;
+  rationale: string;
+  url: string;
+  artist?: string;
+}
+
 // ─── Mock snapshot data (mirrors Snapshot type from Dashboard) ────────────────
 export const DEMO_SNAPSHOT = {
   id: "demo-snapshot-1",
@@ -134,32 +144,57 @@ export const DEMO_ASSIGNMENTS = [
   },
 ];
 
-// ─── Mock resources ───────────────────────────────────────────────────────────
-export const DEMO_RESOURCES = [
+// ─── Demo resources fallback (used only if Claude API call fails) ─────────────
+export const DEMO_RESOURCES: RecommendedResource[] = [
   {
+    type: "book",
     title: "Designing Your Life",
-    type: "book" as const,
-    description:
-      "Bill Burnett & Dave Evans apply design thinking to career and life decisions — perfect for someone at a crossroads.",
+    description: "Bill Burnett & Dave Evans apply design thinking to career and life decisions.",
+    rationale: "You mentioned feeling like you're living the life you thought you should want — this book offers a practical framework for redesigning from scratch.",
     url: "https://designingyour.life",
   },
   {
-    title: "The Tim Ferriss Show — How to Design a Life",
-    type: "podcast" as const,
-    description: "Frameworks for intentional career pivots and lifestyle design.",
-    url: "https://tim.blog/podcast",
-  },
-  {
+    type: "article",
     title: "Feeling Good at Work",
-    type: "article" as const,
     description: "Harvard Business Review on re-aligning work with personal values.",
-    url: "https://hbr.org",
+    rationale: "You described work feeling misaligned with your values — this piece speaks directly to that tension.",
+    url: "https://hbr.org/2011/05/making-yourself-indispensable",
   },
   {
+    type: "podcast",
+    title: "The Tim Ferriss Show — How to Design a Life",
+    description: "Debbie Millman walks through intentional life design with concrete tools.",
+    rationale: "Alex is navigating a career crossroads — this episode walks through intentional life design with concrete tools.",
+    url: "https://tim.blog/2020/01/13/how-to-design-a-life-debbie-millman/",
+  },
+  {
+    type: "video",
     title: "Burnout to Balance — The Anatomy of Overwhelm",
-    type: "youtube" as const,
     description: "A research-backed look at stress, identity, and sustainable recovery.",
-    url: "https://www.youtube.com",
+    rationale: "The overwhelm and identity pressure you described maps closely to what this video addresses.",
+    url: "https://www.youtube.com/watch?v=jqONINYF17M",
+  },
+  {
+    type: "song",
+    title: "Gravity — John Mayer",
+    description: "A guitar-driven meditation on the tension between ambition and authenticity.",
+    rationale: "You're navigating a pull between who you are and who you feel you're supposed to be — this song holds that tension honestly.",
+    url: "https://www.youtube.com/results?search_query=Gravity+John+Mayer",
+    artist: "John Mayer",
+  },
+  {
+    type: "instagram",
+    title: "@dr.thema",
+    description: "Dr. Thema Bryant — psychologist offering culturally rooted perspective on identity and healing.",
+    rationale: "Based on your values around identity and belonging, this voice offers grounded, culturally rooted perspective.",
+    url: "https://www.instagram.com/dr.thema",
+  },
+  {
+    type: "purchase",
+    title: "Fitbit Charge 6",
+    description: "A fitness tracker that helps build consistent movement habits with real data.",
+    rationale: "You want movement as mental health maintenance — tracking helps make it real and sustainable.",
+    url: "https://www.fitbit.com/global/us/products/trackers/charge6",
   },
 ];
 
