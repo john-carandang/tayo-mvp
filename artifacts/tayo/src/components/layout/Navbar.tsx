@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemo } from "@/contexts/DemoContext";
 
 interface NavbarProps {
   firstName?: string;
@@ -10,6 +11,7 @@ interface NavbarProps {
 export function Navbar({ firstName, variant }: NavbarProps) {
   const [, setLocation] = useLocation();
   const { user, signOut } = useAuth();
+  const { isDemoMode } = useDemo();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +74,7 @@ export function Navbar({ firstName, variant }: NavbarProps) {
         }}
         className="hidden md:flex"
       >
-        {user ? (
+        {(user || isDemoMode) ? (
           <>
             {(["Dashboard", "Next Moves", "FAQ"] as const).map((label) => {
               const href = label === "Dashboard" ? "/dashboard" : label === "Next Moves" ? "/next-moves" : "/faq";

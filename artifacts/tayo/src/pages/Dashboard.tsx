@@ -590,6 +590,14 @@ export default function Dashboard() {
                 <p className="text-sm font-semibold" style={{ color: "#746A5A" }}>Intake complete</p>
               </div>
               <button
+                onClick={() => setLocation("/next-moves")}
+                className="flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 shadow-sm"
+                style={{ backgroundColor: "#2A6B63", color: "#F5F0E8" }}
+              >
+                View Next Moves
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => setLocation("/warmup")}
                 className="text-xs underline hover:no-underline"
                 style={{ color: "#9B8E84" }}

@@ -1,0 +1,17 @@
+**Context:** The Tayo demo mode at `/demo` loads Alex Rivera's mock data on the dashboard. The Next Moves tab is not accessible — clicking it either does nothing, throws an error, or fails to render.
+
+**Task:** Diagnose and fix the Next Moves tab in demo mode. Three likely causes to check and resolve in one pass.
+
+**Requirements:**
+
+**Diagnosis — check all three in order:**
+
+1. **Routing issue:** Confirm the Next Moves tab link/button in demo mode points to the correct route (e.g. `/demo/next-moves` or renders the Next Moves component inline). If it is pointing to `/next-moves` without the `/demo` prefix, or if it is routing to an authenticated route that redirects away from demo mode, fix the path to stay within the demo context
+
+2. **Auth guard blocking the component:** The Next Moves component may have an auth check at the top that redirects unauthenticated users before rendering. Add an `isDemoMode` check — if `DEMO_MODE_ENABLED` is true and the mock user context is present, bypass the auth guard and render the component with mock data. Do not remove the auth guard for production users
+
+3. **Mock data not wired to Next Moves:** The Next Moves component may be attempting to fetch commitments and resources from Supabase, receiving nothing, and rendering blank or crashing. Confirm the `isDemoMode` flag short-circuits all Supabase reads in Next Moves and injects the mock commitments and resources from the demo context instead. If the mock data object does not currently include Next Moves data, add it — use the seed data from the prior prompt (three commitments with emoji icons, and the seven-type resource fallback seed array)
+
+**Security & Privacy:** Do not remove any auth guards for production users. The `isDemoMode` bypass must only activate when `DEMO_MODE_ENABLED=true` is confirmed server-side. No Supabase writes in demo mode.
+
+**Verification:** After completing, confirm: (1) clicking the Next Moves tab in demo mode renders the page without error, (2) Alex Rivera's three commitments appear with emoji icons, (3) at least the seed fallback resources appear if the Claude API call has not yet fired, (4) no auth redirect occurs, (5) production users at `/next-moves` are unaffected.
