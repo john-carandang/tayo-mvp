@@ -2,7 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { Music, Youtube, BookOpen, ChevronRight, Image, X } from "lucide-react";
+import { Music, Youtube, BookOpen, ChevronRight, Image, X, Upload } from "lucide-react";
+
+interface PhotoEntry {
+  urlValue: string;
+  fileB64?: string;
+  fileName?: string;
+  error?: string;
+}
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -20,7 +27,7 @@ export default function Warmup() {
   const [music, setMusic] = useState("");
   const [youtube, setYoutube] = useState("");
   const [media, setMedia] = useState("");
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<PhotoEntry[]>([]);
   const [saving, setSaving] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -55,11 +62,33 @@ export default function Warmup() {
     };
   }, []);
 
-  const addPhotoUrl = () => {
-    if (photos.length < 4) setPhotos(p => [...p, ""]);
+  const addPhoto = () => {
+    if (photos.length < 4) setPhotos(p => [...p, { urlValue: "" }]);
   };
-  const updatePhoto = (i: number, val: string) => setPhotos(p => p.map((v, idx) => idx === i ? val : v));
+  const updatePhotoUrl = (i: number, val: string) =>
+    setPhotos(p => p.map((v, idx) => idx === i ? { ...v, urlValue: val, error: undefined } : v));
   const removePhoto = (i: number) => setPhotos(p => p.filter((_, idx) => idx !== i));
+  const clearFile = (i: number) =>
+    setPhotos(p => p.map((v, idx) => idx === i ? { urlValue: v.urlValue, error: undefined } : v));
+
+  const handleFileUpload = (i: number, file: File | undefined) => {
+    if (!file) return;
+    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    if (!allowed.includes(file.type)) {
+      setPhotos(p => p.map((v, idx) => idx === i ? { ...v, error: "Only .jpg, .jpeg, .png, .webp, or .pdf files are accepted." } : v));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotos(p => p.map((v, idx) => idx === i ? { ...v, error: "File must be under 5 MB." } : v));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const b64 = e.target?.result as string;
+      setPhotos(prev => prev.map((v, idx) => idx === i ? { urlValue: "", fileB64: b64, fileName: file.name, error: undefined } : v));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -68,7 +97,7 @@ export default function Warmup() {
       music: music.trim() || null,
       youtube: youtube.trim() || null,
       media: media.trim() || null,
-      photos: photos.filter(p => p.trim()).slice(0, 4),
+      photos: photos.map(p => p.fileB64 || p.urlValue.trim()).filter(Boolean).slice(0, 4),
     };
     try {
       const token = getToken();
@@ -107,20 +136,6 @@ export default function Warmup() {
           </p>
         </div>
 
-        {/* Hero image placeholder */}
-        <div
-          className="w-full rounded-2xl mb-8 flex items-center justify-center"
-          style={{
-            height: 160,
-            backgroundColor: "rgba(122,158,135,0.08)",
-            border: "1.5px dashed rgba(122,158,135,0.3)",
-          }}
-        >
-          <p className="text-xs text-center px-6" style={{ color: "rgba(122,158,135,0.6)", fontStyle: "italic" }}>
-            [BIPOC photo placeholder — warm, candid, reflective moment]
-          </p>
-        </div>
-
         <div className="space-y-5 mb-10">
           {/* Photos */}
           <motion.div
@@ -135,27 +150,56 @@ export default function Warmup() {
               </div>
               <div>
                 <h3 className="text-sm font-semibold" style={{ color: "#2C1810" }}>4 photos that represent you right now</h3>
-                <p className="text-xs" style={{ color: "#9B8E84" }}>Places, people, objects, anything. Paste image URLs or describe them.</p>
+                <p className="text-xs" style={{ color: "#9B8E84" }}>Places, people, objects — anything. Paste URLs or upload files (jpg, png, webp, pdf · max 5 MB).</p>
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {photos.map((photo, i) => (
-                <div key={i} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={photo}
-                    onChange={e => updatePhoto(i, e.target.value)}
-                    placeholder={`Photo ${i + 1} URL or description`}
-                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
-                    style={{ backgroundColor: "#F5F0E8", border: "1px solid rgba(44,24,16,0.15)", color: "#2C1810" }}
-                  />
-                  <button onClick={() => removePhoto(i)} style={{ color: "#9B8E84" }}>
-                    <X className="w-4 h-4" />
-                  </button>
+                <div key={i}>
+                  <div className="flex gap-2">
+                    {photo.fileB64 ? (
+                      <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: "#F5F0E8", border: "1px solid rgba(44,24,16,0.15)" }}>
+                        <span className="text-xs truncate flex-1" style={{ color: "#2C1810" }}>{photo.fileName}</span>
+                        <button onClick={() => clearFile(i)} className="text-xs flex-shrink-0 hover:opacity-70" style={{ color: "#9B8E84" }}>
+                          Change
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={photo.urlValue}
+                        onChange={e => updatePhotoUrl(i, e.target.value)}
+                        placeholder={`Photo ${i + 1} — paste a URL`}
+                        className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                        style={{ backgroundColor: "#F5F0E8", border: "1px solid rgba(44,24,16,0.15)", color: "#2C1810" }}
+                      />
+                    )}
+                    {!photo.fileB64 && (
+                      <label
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition-opacity hover:opacity-70 flex-shrink-0"
+                        style={{ backgroundColor: "rgba(196,98,45,0.1)", color: "#C4622D", border: "1px solid rgba(196,98,45,0.2)" }}
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        Upload
+                        <input
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.webp,.pdf"
+                          className="hidden"
+                          onChange={e => handleFileUpload(i, e.target.files?.[0])}
+                        />
+                      </label>
+                    )}
+                    <button onClick={() => removePhoto(i)} style={{ color: "#9B8E84" }}>
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {photo.error && (
+                    <p className="text-xs mt-1" style={{ color: "#C4622D" }}>{photo.error}</p>
+                  )}
                 </div>
               ))}
               {photos.length < 4 && (
-                <button onClick={addPhotoUrl} className="text-xs font-medium mt-1" style={{ color: "#7A9E87" }}>
+                <button onClick={addPhoto} className="text-xs font-medium mt-1" style={{ color: "#7A9E87" }}>
                   + Add photo
                 </button>
               )}

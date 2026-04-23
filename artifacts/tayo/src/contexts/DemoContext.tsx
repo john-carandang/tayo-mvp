@@ -93,17 +93,22 @@ export const DEMO_SNAPSHOT = {
   scorecard: {
     purpose:
       "Explore what a values-aligned life looks like — one where career, creativity, and connection reflect who Alex truly is.",
-    values: ["Family", "Creativity", "Integrity", "Impact"],
+    values: [
+      "Family: Staying connected and anchored to those who made me who I am.",
+      "Creativity: Bringing originality and expression to whatever I do.",
+      "Integrity: Acting in alignment with my values even when it's uncomfortable.",
+      "Impact: Knowing my work and presence is making something better for someone.",
+    ],
     strengths: [
-      "Self-awareness and willingness to do the work",
-      "Resilience — navigated a major city move and career transition",
-      "Network building and relationship intelligence",
-      "Intellectual curiosity and openness to growth",
+      "Self-awareness: A deep willingness to look honestly at what's working and what isn't.",
+      "Resilience: Navigated a major city move and career transition without losing momentum.",
+      "Relationship intelligence: Builds strong networks and reads people with care.",
+      "Intellectual curiosity: Stays genuinely open to growth and brings honest interest to learning.",
     ],
     challenges: [
-      "Fear of making the wrong choice leading to analysis paralysis",
-      "External validation over internal compass",
-      "Difficulty setting boundaries at work",
+      "Analysis paralysis: Fear of making the wrong choice creates friction around decisions that require real commitment.",
+      "External validation: Tends to measure progress through others' eyes rather than an internal compass.",
+      "Boundary-setting: Difficulty holding limits at work leads to overextension and resentment.",
     ],
     focusAreas: [
       "Career: Explore a values-aligned pivot over 12 months — start with informational conversations in adjacent fields.",
@@ -195,6 +200,20 @@ export const DEMO_RESOURCES: RecommendedResource[] = [
     description: "A fitness tracker that helps build consistent movement habits with real data.",
     rationale: "You want movement as mental health maintenance — tracking helps make it real and sustainable.",
     url: "https://www.fitbit.com/global/us/products/trackers/charge6",
+  },
+  {
+    type: "purchase",
+    title: "Headspace",
+    description: "A guided meditation and mindfulness app — structured programs for stress, sleep, and focus.",
+    rationale: "You're carrying a lot. A short daily practice can create space between stimulus and response — especially useful right now.",
+    url: "https://www.headspace.com",
+  },
+  {
+    type: "purchase",
+    title: "Eventbrite — Networking in Your City",
+    description: "Browse professional and social events happening near you — low-commitment ways to expand your network.",
+    rationale: "You mentioned wanting a more intentional social life. Showing up to one event takes the decision-making away.",
+    url: "https://www.eventbrite.com",
   },
 ];
 

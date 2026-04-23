@@ -99,6 +99,20 @@ const DEMO_FALLBACK: RecommendedResource[] = [
     rationale: "You want movement as mental health maintenance — tracking helps make it real and sustainable.",
     url: "https://www.fitbit.com/global/us/products/trackers/charge6",
   },
+  {
+    type: "purchase",
+    title: "Headspace",
+    description: "A guided meditation and mindfulness app — structured programs for stress, sleep, and focus.",
+    rationale: "You're carrying a lot. A short daily practice can create space between stimulus and response — especially useful right now.",
+    url: "https://www.headspace.com",
+  },
+  {
+    type: "purchase",
+    title: "Eventbrite — Networking in Your City",
+    description: "Browse professional and social events happening near you — low-commitment ways to expand your network.",
+    rationale: "You mentioned wanting a more intentional social life. Showing up to one event takes the decision-making away.",
+    url: "https://www.eventbrite.com",
+  },
 ];
 
 const ALEX_CONTEXT = `Name: Alex Rivera, 28, San Francisco, first-generation Filipino-American

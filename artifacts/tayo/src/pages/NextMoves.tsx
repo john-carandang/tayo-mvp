@@ -62,10 +62,10 @@ const RESOURCE_CTA: Record<string, string> = {
 };
 
 const RESOURCE_REFLECTION_PLACEHOLDER: Record<string, string> = {
-  book:      "What resonated or surprised you?",
+  book:      "What's one thing you're taking away?",
   article:   "What's one thing you're taking away?",
-  podcast:   "What hit home for you?",
-  video:     "What did this bring up for you?",
+  podcast:   "What's one thing you're taking away?",
+  video:     "What's one thing you're taking away?",
   song:      "What did this bring up for you?",
   instagram: "What about this person resonates with you?",
   purchase:  "Would this actually help you? Why or why not?",

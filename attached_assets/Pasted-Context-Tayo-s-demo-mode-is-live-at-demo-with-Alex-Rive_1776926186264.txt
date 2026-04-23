@@ -1,0 +1,153 @@
+Context: Tayo's demo mode is live at /demo with Alex Rivera's mock data. We are applying a full set of improvements across four pages in one pass: the warm-up page, session page, dashboard, and Next Moves. This is a consolidation of all outstanding product updates.
+Task: Apply all changes below organized by page. Demo mode mock data must be updated wherever new fields or formats are introduced. No auth logic changes, no new routes.
+
+Page 1 — Warm-Up ("Let's Warm Up")
+
+Remove the BIPOC photo placeholder div entirely — delete the element and all associated styles. No empty space left behind; content flows directly from page header to first input card
+Update the photo input to accept both file uploads and URLs:
+
+Support a file picker button labeled "Upload photo" alongside the existing URL text field
+Accepted types: .jpg, .jpeg, .png, .webp, .pdf
+After file selection, show a filename confirmation below the input (e.g. "photo-1.jpg uploaded")
+Store uploaded files as base64 in component state only — no Supabase upload, no external service
+Enforce max 5MB per file and accepted type list both client-side and server-side
+Show an inline error message if either limit is exceeded
+Never pass raw file data to any external API
+
+
+
+
+Page 2 — Session page
+
+Remove the BIPOC photo placeholder div entirely — same treatment as warm-up
+User's first name in voice greeting: pull from user.user_metadata.first_name or split user.user_metadata.full_name on space. In demo mode use "Alex". Never fall back to a generic greeting like "Hello there" if a name is available
+Session duration language: replace every instance of "25–28 minutes" in all user-facing strings and ElevenLabs TTS prompts with "25–30 minutes" exactly. The 28-minute internal wrap-up cue must remain in backend session logic but must never appear in any user-facing string or TTS output
+
+
+Page 3 — Dashboard
+Journey to Date — brand palette colors:
+
+Replace current badge/dot colors with these four exclusively:
+
+Transitional: #C4622D (burnt orange)
+Formative: #2A6B63 (deep teal)
+Right now: #D4A847 (amber gold)
+Growth: #8A9A6E (sage green)
+
+
+Badge background: color at 15% opacity. Badge text and dot: full color
+Update demo mock data entries to use these four states
+
+Strategic Plan — formatting:
+
+Every bullet point in Core Values, Strengths, Strategic Challenges, and Focus Areas must follow: [Bold title]: [Description]
+Short title: font-weight: 500, color: #1C1812
+Colon separator, then description in normal weight color: #5a4a3f
+Update all demo mock data to this format:
+
+Core Values: "Family: Staying connected to and showing up for the people who matter most, even as life gets busy." / "Creativity: Expressing something original and meaningful — not just producing, but making." / "Integrity: Doing the right thing even when it's harder than the alternative." / "Impact: Leaving things meaningfully better than I found them."
+Strengths: "Self-awareness: A genuine willingness to look inward and do the work, even when it's uncomfortable." / "Resilience: Navigated a major city move and career transition without losing momentum." / "Relationship intelligence: Builds trust quickly and maintains it — people open up to Alex naturally." / "Intellectual curiosity: Drawn to ideas across fields — connects dots others miss."
+Strategic Challenges: "Analysis paralysis: Fear of making the wrong choice often delays action on decisions that matter." / "External validation: Tends to measure progress by others' reactions rather than internal compass." / "Boundary-setting: Difficulty saying no at work leads to overcommitment and resentment."
+Focus Areas: "Career pivot: Explore a values-aligned career change over 12 months — start with informational conversations in 3 adjacent fields before committing to any direction." / "Physical consistency: Re-establish a movement routine as mental health maintenance — 20 minutes 3x/week, no pressure on intensity." / "Manager relationship: Have one honest conversation about workload and recognition within 30 days — prepare talking points in advance."
+
+
+
+
+Page 4 — Next Moves
+Commitments:
+
+Replace subtitle with: "What you seek to do before your next session."
+Commitments must be fully toggle-able in both directions — checking marks complete, clicking again unchecks. Fix current one-way behavior
+Add emoji icon left of each commitment. Demo mode assignments:
+
+"Schedule 2 informational interviews" → 📅
+"Block 3 movement sessions on calendar" → 🏃
+"Draft talking points for manager conversation" → 💬
+
+
+On check OR uncheck: show inline text area below — "Add a quick reflection (1–2 sentences) — this will inform your next session.", placeholder: "What came up for you around this?", max-length: 280, serif font, warm border styling
+Demo mode: store reflections in React state only. Production: write to commitment_reflections in user's Supabase session record with RLS enforced
+
+Resources — layout:
+
+Remove the 2x2 grid entirely
+Replace with vertically stacked subsections in this order:
+
+Books
+Articles
+Podcasts
+Videos / YouTube
+Songs
+People worth following
+Things that could help
+
+
+Section separator: border-top: 0.5px solid rgba(60,40,20,0.10), padding-top: 24px, margin-top: 24px
+Eyebrow label per subsection: sans-serif, font-size: 12px, font-weight: 500, letter-spacing: 0.10em, text-transform: uppercase, color: #C4622D, margin-bottom: 12px
+Only render subsections with at least one item
+Each card: full width, background: #fff, border: 0.5px solid rgba(60,40,20,0.12), border-radius: 12px, padding: 20px 24px, margin-bottom: 10px
+
+Resources — card anatomy (all types):
+
+Title: font-weight: 500, font-size: 16px, color: #1C1812
+Description: one sentence, font-size: 14px, color: #5a4a3f, serif
+Rationale: "Why this: ..." — one sentence connecting to user context, font-size: 13px, font-style: italic, color: #8a7060
+Checkmark toggle top-right: unchecked default. Checked: background: #2A6B63, checkmark color: #F7F0E0, label "Mark as reviewed" (Instagram and purchase cards: "Noted")
+Reflection on check: inline text area, max-length: 280. Placeholders by type:
+
+Books/Articles/Podcasts/Videos: "What's one thing you're taking away?"
+Songs: "What did this bring up for you?"
+Instagram: "What about this person resonates with you?"
+Purchases: "Would this actually help you? Why or why not?"
+
+
+All external links: target="_blank" rel="noopener noreferrer"
+Store reflections in React state (demo) / Supabase session record with RLS (production)
+
+Resources — type-specific:
+
+Books: CTA "View book" → author site or retailer
+Articles: CTA "Read article" → direct article URL
+Podcasts: CTA "Listen" → episode URL
+Videos: CTA "Watch" → direct YouTube URL
+Songs: Title format "[Song] — [Artist]". CTA "Listen on YouTube" → https://www.youtube.com/results?search_query=[URL-encoded artist+title]
+Instagram: Title = handle. CTA "View profile" → https://www.instagram.com/[handle]
+Purchases: CTA "Learn more" as burnt orange pill → product URL
+
+Resources — dynamic Claude generation:
+
+Replace all hardcoded arrays with a single server-side Claude API call generating all seven types
+Trigger: once per session on Next Moves load. Cache by userId + sessionId — never re-fire on refresh
+Model: claude-sonnet-4-20250514, max_tokens: 2000, server-side only — API key never client-facing
+System prompt instructs Claude to return a valid JSON array only, each item with: type, title, description, rationale (starting with "You mentioned..." or "Based on..."), url, artist (songs only)
+User message constructed from: intake summary, last session summary, dimension scores, core values, focus areas, uploaded intake file content (labeled and sanitized)
+Sanitize all user content before passing — strip injection patterns server-side
+Purchase recommendations limited strictly to: fitness/wellness, books/courses, experiences, therapy/coaching platforms, mindfulness tools. No alcohol, gambling, fast food
+Wrap parse in try/catch — fall back to hardcoded seed data silently on failure. Log errors server-side only
+Demo mode: call Claude with Alex Rivera's mock profile. Fall back to seed data if call fails
+
+Resources — demo seed fallback data:
+
+Book: "Designing Your Life" / "https://designingyour.life" / "You mentioned feeling like you're living the life you thought you should want — this offers a practical framework for redesigning from scratch."
+Article: "Feeling Good at Work" / "https://hbr.org/2011/05/making-yourself-indispensable" / "You described work feeling misaligned with your values — this speaks directly to that tension."
+Podcast: "The Tim Ferriss Show — How to Design a Life" / "https://tim.blog/2020/01/13/how-to-design-a-life-debbie-millman/" / "Alex is at a career crossroads — this episode walks through intentional life design with concrete tools."
+Video: "Burnout to Balance — The Anatomy of Overwhelm" / "https://www.youtube.com/watch?v=jqONINYF17M" / "The overwhelm and identity pressure you described maps closely to what this addresses."
+Song: "Gravity — John Mayer" / YouTube search URL / "You're navigating a pull between who you are and who you feel you're supposed to be — this song holds that tension honestly."
+Instagram: @dr.thema / "https://www.instagram.com/dr.thema" / "Based on your values around identity and belonging, this voice offers grounded, culturally rooted perspective."
+Purchase — Fitbit Charge 6: "https://www.fitbit.com/global/us/products/trackers/charge6" / "You want movement as mental health maintenance — tracking helps make it real."
+Purchase — Headspace: "https://www.headspace.com" / "You're managing competing pressures — 10 minutes a day has measurable impact on stress."
+Purchase — Eventbrite SF: "https://www.eventbrite.com/d/ca--san-francisco/events" / "You value connection and creativity — getting out is an investment in both."
+Purchase — BetterHelp: "https://www.betterhelp.com" / "Therapy opened important doors for you — continued support alongside coaching compounds the work."
+
+
+Security & Privacy:
+
+File uploads: 5MB max and type validation server-side, not just client-side. Never pass raw file data to any external API
+Claude API key: server-side only — confirm absent from all client-side network requests
+Sanitize all user content before Claude prompt — strip injection patterns
+All outbound links: rel="noopener noreferrer" and target="_blank", no user data in URLs, no affiliate parameters
+Reflection text: React state only in demo mode. Authenticated Supabase session record with RLS in production
+Never log reflection text, intake content, or user data to any console
+
+UI/UX: All new sections must match the existing Tayo aesthetic — parchment background, warm serif body, burnt orange and teal accents, 0.5px warm brown borders. Reflection text areas: calm, inviting, serif font. The rationale line on every resource card is the most important element — it makes the user feel seen, not served an algorithm.
+Verification: Confirm: (1) warm-up has no photo placeholder, accepts file uploads with validation; (2) session addresses user by first name, says "25–30 minutes" with no "28" anywhere user-facing; (3) Journey to Date badges use only the four brand palette colors; (4) all Strategic Plan bullets follow bold-title: description format with updated demo copy; (5) commitments toggle in both directions with emoji icons and reflection prompts; (6) resources render as stacked subsections in correct order with no empty sections; (7) songs show "Listen on YouTube" with YouTube search URLs; (8) all resource links are specific URLs opening in new tabs; (9) Claude API call fires once per session, cached, key never client-side; (10) fallback seed data loads if Claude call fails; (11) reflection prompts appear on all card types; (12) no Supabase writes in demo mode.

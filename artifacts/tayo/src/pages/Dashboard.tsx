@@ -29,10 +29,10 @@ interface Snapshot {
 }
 
 const MOOD_COLORS: Record<string, { bg: string; dot: string; label: string }> = {
-  peak:          { bg: "rgba(122,158,135,0.15)", dot: "#7A9E87", label: "Breakthrough" },
-  valley:        { bg: "rgba(196,98,45,0.1)",    dot: "#C4622D", label: "Challenging" },
-  turning_point: { bg: "rgba(212,168,67,0.12)",  dot: "#D4A843", label: "Transitional" },
-  stable:        { bg: "rgba(91,127,166,0.1)",   dot: "#5B7FA6", label: "Formative" },
+  turning_point: { bg: "rgba(196,98,45,0.12)",   dot: "#C4622D", label: "Transitional" },
+  stable:        { bg: "rgba(42,107,99,0.1)",     dot: "#2A6B63", label: "Formative" },
+  peak:          { bg: "rgba(138,154,110,0.12)",  dot: "#8A9A6E", label: "Growth" },
+  valley:        { bg: "rgba(138,154,110,0.12)",  dot: "#8A9A6E", label: "Growth" },
 };
 
 // Portrait colors: dark forest green = Thriving, light green = Building, amber yellow = Needs Attention
@@ -91,11 +91,11 @@ function ChapterCards({ events }: { events: TayoLifeEvent[] }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.06 }}
                 className="rounded-2xl p-5 flex-shrink-0 w-52"
-                style={{ backgroundColor: isLast ? "rgba(196,98,45,0.08)" : mood.bg, border: `1.5px solid ${isLast ? "#C4622D" : mood.dot}30` }}
+                style={{ backgroundColor: isLast ? "rgba(212,168,71,0.1)" : mood.bg, border: `1.5px solid ${isLast ? "#D4A847" : mood.dot}30` }}
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: isLast ? "#C4622D" : mood.dot }} />
-                  <span className="text-xs font-semibold" style={{ color: isLast ? "#C4622D" : mood.dot }}>
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: isLast ? "#D4A847" : mood.dot }} />
+                  <span className="text-xs font-semibold" style={{ color: isLast ? "#D4A847" : mood.dot }}>
                     {isLast ? "Right now" : mood.label}
                   </span>
                 </div>
@@ -239,12 +239,20 @@ function Scorecard({
                 <p className="text-sm leading-relaxed" style={{ color: "#2C1810" }}>{content}</p>
               ) : (
                 <ul className="space-y-2">
-                  {content.map((item, i) => (
-                    <li key={i} className="flex gap-2 items-start text-sm" style={{ color: "#2C1810" }}>
-                      <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: accent }} />
-                      <span className="leading-relaxed">{item}</span>
-                    </li>
-                  ))}
+                  {content.map((item, i) => {
+                    const colonIdx = item.indexOf(":");
+                    const boldPart = colonIdx > -1 ? item.slice(0, colonIdx).trim() : null;
+                    const restPart = colonIdx > -1 ? item.slice(colonIdx + 1).trim() : item;
+                    return (
+                      <li key={i} className="flex gap-2 items-start text-sm">
+                        <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: accent }} />
+                        <span className="leading-relaxed">
+                          {boldPart && <span style={{ fontWeight: 600, color: "#1C1812" }}>{boldPart}: </span>}
+                          <span style={{ color: "#5a4a3f" }}>{restPart}</span>
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </motion.div>

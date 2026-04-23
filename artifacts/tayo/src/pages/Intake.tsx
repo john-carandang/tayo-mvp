@@ -50,7 +50,7 @@ Warm-up context (weave naturally — do not read as a checklist):
 Your goal is inquiry and relationship-building — go deep on whatever the user brings. Build trust first.
 ${warmupContext}
 
-Your very first message: Welcome ${name} warmly to Tayo — use their name. Tell them this is a space to think out loud about their life — their story, what matters, what they're navigating. Tell them to plan for 25–28 minutes and the more openly they share, the richer their insights. Then ask: "What's top of mind for you today, ${name}?"
+Your very first message: Welcome ${name} warmly to Tayo — use their name. Tell them this is a space to think out loud about their life — their story, what matters, what they're navigating. Tell them to plan for 25–30 minutes and the more openly they share, the richer their insights. Then ask: "What's top of mind for you today, ${name}?"
 
 Over the course of this conversation, gently explore (in whatever order feels natural):
 - Their life story and key chapters — highs, lows, turning points
@@ -193,7 +193,7 @@ Rules: 1-3 assignments max. Keep titles concise. Match type to commitment (habit
 export default function Intake() {
   const [, setLocation] = useLocation();
   const { setProfile } = useTayoProfile();
-  const { getToken, getTokenAsync } = useAuth();
+  const { getToken, getTokenAsync, user } = useAuth();
   const { isDemoMode } = useDemo();
 
   const [voiceState, setVoiceState] = useState<VoiceState>("LOADING");
@@ -270,6 +270,13 @@ export default function Intake() {
           firstName = d.profile?.first_name || lastProfile?.firstName || "";
         }
 
+        if (!firstName) {
+          const meta = user?.user_metadata as Record<string, unknown> | undefined;
+          firstName = (meta?.first_name as string | undefined)
+            || ((meta?.full_name as string | undefined)?.split(" ")[0])
+            || "";
+        }
+
         firstNameRef.current = firstName;
         const nextNum = sesCount + 1;
         setSessionNumber(nextNum);
@@ -288,7 +295,7 @@ export default function Intake() {
       setSessionLoaded(true);
     };
     initialize();
-  }, [isDemoMode, getTokenAsync]);
+  }, [isDemoMode, getTokenAsync, user]);
 
   const stopAudio = useCallback(() => {
     playbackCancelRef.current = true;
@@ -514,20 +521,6 @@ export default function Intake() {
       title={isSessionN ? `Session ${sessionNumber}` : "Your Voice Intake"}
       description={sessionDescription}
     >
-      {/* Photo placeholder — warm aspirational placement */}
-      <div
-        className="w-full rounded-2xl mb-6 flex items-center justify-center overflow-hidden"
-        style={{
-          height: 120,
-          backgroundColor: "rgba(196,98,45,0.07)",
-          border: "1.5px dashed rgba(196,98,45,0.2)",
-        }}
-      >
-        <p className="text-xs text-center px-6" style={{ color: "rgba(196,98,45,0.5)", fontStyle: "italic" }}>
-          [BIPOC photo placeholder — warm, natural, aspirational]
-        </p>
-      </div>
-
       <div className="flex flex-col items-center gap-6 pt-2">
         {/* Voice Orb */}
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
