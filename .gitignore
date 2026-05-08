@@ -47,3 +47,7 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.env  
+.env.local  
+SESSION_SECRET.txt 
+APIs.env.txt 
