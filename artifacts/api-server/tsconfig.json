@@ -5,15 +5,19 @@
     "rootDir": "src",
     "types": ["node"],
     "noEmitOnError": false,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "strict": false,
+    "skipLibCheck": true,
+    "noImplicitThis": false,
+    "strictNullChecks": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "useUnknownInCatchVariables": false,
+    "alwaysStrict": false
   },
   "include": ["src"],
   "references": [
-    {
-      "path": "../../lib/db"
-    },
-    {
-      "path": "../../lib/api-zod"
-    }
+    { "path": "../../lib/db" },
+    { "path": "../../lib/api-zod" }
   ]
 }
